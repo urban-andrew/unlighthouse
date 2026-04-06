@@ -4,11 +4,11 @@ import { createUnlighthouse, useLogger } from '@unlighthouse/core'
 import { createServer } from '@unlighthouse/server'
 import open from 'better-opn'
 import createCli from './createCli'
-import { pickOptions, validateHost, validateOptions } from './util'
+import { argvForCliParse, pickOptions, validateHost, validateOptions } from './util'
 
 const cli = createCli()
 
-const { options } = cli.parse() as unknown as { options: CliOptions }
+const { options } = cli.parse(argvForCliParse()) as unknown as { options: CliOptions }
 
 async function run() {
   const start = new Date()

@@ -9,7 +9,7 @@ import { isCI } from 'std-env'
 import createCli from './createCli'
 import { handleError } from './errors'
 import { generateReportPayload, outputReport } from './reporters'
-import { pickOptions, validateHost, validateOptions } from './util'
+import { argvForCliParse, pickOptions, validateHost, validateOptions } from './util'
 
 async function run() {
   const startTime = new Date()
@@ -24,7 +24,7 @@ async function run() {
   cli.option('--lhci-build-token <lhci-build-token>', 'LHCI build token, used to add data.')
   cli.option('--lhci-auth <lhci-auth>', 'Basic auth for your LHCI server.')
 
-  const { options } = cli.parse() as unknown as { options: CiOptions }
+  const { options } = cli.parse(argvForCliParse()) as unknown as { options: CiOptions }
 
   if (options.help || options.version)
     return

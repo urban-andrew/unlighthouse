@@ -6,6 +6,18 @@ import { defu } from 'defu'
 import { pick } from 'lodash-es'
 import { handleError } from './errors'
 
+/**
+ * When the CLI is run via `pnpm run cli -- --site https://…`, the shell often forwards a bare `--`
+ * before the real flags. cac stops parsing at that token, so `--site` is ignored. Strip those
+ * sentinels so options parse correctly.
+ */
+export function argvForCliParse(): string[] {
+  const node = process.argv[0] ?? 'node'
+  const script = process.argv[1] ?? ''
+  const rest = process.argv.slice(2).filter(arg => arg !== '--')
+  return [node, script, ...rest]
+}
+
 export async function validateHost(resolvedConfig: ResolvedUserConfig) {
   const site = resolvedConfig.site
   const logger = useLogger()
