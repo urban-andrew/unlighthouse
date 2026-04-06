@@ -206,6 +206,7 @@ export const defaultConfig: UserConfig = {
   root: process.cwd(),
   outputPath: '.unlighthouse',
   debug: false,
+  localHistory: false,
 
   puppeteerOptions: {},
   puppeteerClusterOptions: {

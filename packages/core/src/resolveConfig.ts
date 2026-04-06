@@ -123,6 +123,14 @@ export const resolveUserConfig: (userConfig: UserConfig) => Promise<ResolvedUser
     ]
   }
 
+  if (config.localHistory && typeof config.localHistory === 'object' && config.localHistory.enabled) {
+    config.localHistory = defu(config.localHistory, {
+      maxRuns: 20,
+      subdir: 'history',
+      dashboard: true,
+    })
+  }
+
   if (config.client?.columns) {
     // filter out any columns for categories we're not showing
     config.client.columns = pick(config.client.columns, ['overview', ...config.lighthouseOptions.onlyCategories as UnlighthouseTabs[]])

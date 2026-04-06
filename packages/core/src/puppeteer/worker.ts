@@ -21,6 +21,7 @@ import { createProgressBox } from '../util/progressBox'
 import {
   launchPuppeteerCluster,
 } from './cluster'
+import { persistLocalRunHistory } from '../history/localRunHistory'
 
 let warnedMaxRoutesExceeded = false
 
@@ -31,12 +32,21 @@ let warnedMaxRoutesExceeded = false
  * @param tasks
  */
 export async function createUnlighthouseWorker(tasks: Record<UnlighthouseTask, TaskFunction<PuppeteerTaskArgs, PuppeteerTaskReturn>>): Promise<UnlighthouseWorker> {
-  const { hooks, resolvedConfig } = useUnlighthouse()
+  const { hooks, resolvedConfig, runtimeSettings } = useUnlighthouse()
   const logger = useLogger()
   const progressBox = createProgressBox()
   const cluster = await launchPuppeteerCluster()
 
   const routeReports = new Map<string, UnlighthouseRouteReport>()
+
+  const callWorkerFinished = () => {
+    if (resolvedConfig.localHistory && typeof resolvedConfig.localHistory === 'object' && resolvedConfig.localHistory.enabled) {
+      void persistLocalRunHistory(resolvedConfig, runtimeSettings, routeReports).catch((e: unknown) => {
+        logger.warn('Failed to write local run history snapshot.', e)
+      })
+    }
+    hooks.callHook('worker-finished')
+  }
   const ignoredRoutes = new Set<string>()
   const retriedRoutes = new Map<string, number>()
 
@@ -249,7 +259,7 @@ export async function createUnlighthouseWorker(tasks: Record<UnlighthouseTask, T
       if (!taskName) {
         // tasks are finished
         if (monitor().status === 'completed')
-          hooks.callHook('worker-finished')
+          callWorkerFinished()
 
         return
       }
@@ -275,9 +285,9 @@ export async function createUnlighthouseWorker(tasks: Record<UnlighthouseTask, T
             ignoredRoutes.add(id)
             logger.debug(`Ignoring route \`${routeReport.route.path}\`.`)
             // Check if all routes are ignored/completed and trigger worker-finished
-            if (monitor().status === 'completed') {
-              hooks.callHook('worker-finished')
-            }
+            if (monitor().status === 'completed')
+              callWorkerFinished()
+
             return
           }
           if (response.tasks[taskName] === 'failed')

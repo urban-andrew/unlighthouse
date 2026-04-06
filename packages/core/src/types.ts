@@ -243,6 +243,29 @@ export interface GenerateClientOptions {
   static?: boolean
 }
 
+/**
+ * Store a compact JSON snapshot of each completed scan for offline comparison between runs.
+ * Files live under `outputPath/<subdir>/` (default `.unlighthouse/history/`).
+ */
+export interface LocalHistoryConfig {
+  enabled: boolean
+  /**
+   * How many completed runs to keep; older run folders are deleted.
+   * @default 20
+   */
+  maxRuns?: number
+  /**
+   * Directory name under `outputPath`.
+   * @default 'history'
+   */
+  subdir?: string
+  /**
+   * Write `dashboard.html` (summary table) next to `index.json`.
+   * @default true
+   */
+  dashboard?: boolean
+}
+
 export interface ResolvedUserConfig {
   /**
    * The site that will be scanned.
@@ -325,6 +348,13 @@ export interface ResolvedUserConfig {
    * @default false
    */
   debug: boolean
+  /**
+   * When enabled, each time the worker finishes a full pass, append a timestamped `run.json` under
+   * `outputPath/<subdir>/` and update `index.json` so you can diff scores across local runs.
+   *
+   * @default false (omit or set `enabled: false`)
+   */
+  localHistory: false | LocalHistoryConfig
   /**
    * Hooks to run to augment the behaviour of Unlighthouse.
    */
@@ -454,7 +484,8 @@ export interface ResolvedUserConfig {
      */
     dynamicSampling: number | false
     /**
-     * Whether the sitemap.xml will be attempted to be read from the site.
+     * Sitemap discovery: `true` uses `/sitemap.xml`, or pass full URLs to XML sitemaps, sitemap indexes, `.txt` URL lists,
+     * or **HTML** sitemap pages (e.g. `/pages/sitemap`) — links are extracted from anchor tags.
      *
      * @default true
      */
