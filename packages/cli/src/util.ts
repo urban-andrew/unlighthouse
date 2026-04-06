@@ -90,6 +90,9 @@ export function pickOptions(options: CiOptions | CliOptions): UserConfig {
   else if (options.disableJavascript)
     picked.scanner.skipJavascript = true
 
+  if (options.suppressKlaviyo)
+    picked.scanner.suppressKlaviyo = true
+
   if (options.samples)
     picked.scanner.samples = options.samples
 

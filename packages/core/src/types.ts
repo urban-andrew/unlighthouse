@@ -473,6 +473,13 @@ export interface ResolvedUserConfig {
      */
     device: 'mobile' | 'desktop' | false
     /**
+     * Block Klaviyo scripts and requests during scans so popups/modals and onsite JS do not skew Core Web Vitals and Lighthouse performance scores.
+     * Uses Lighthouse `blockedUrlPatterns` for audits and aborts matching requests during Puppeteer HTML extraction when JavaScript is enabled.
+     *
+     * @default false
+     */
+    suppressKlaviyo: boolean
+    /**
      * Resolved robots.txt groups.
      * @internal
      */

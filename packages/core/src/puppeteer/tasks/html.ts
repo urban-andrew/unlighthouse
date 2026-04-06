@@ -13,7 +13,6 @@ import { isImplicitOrExplicitHtml } from '../../util/filter'
 import { setupPage } from '../util'
 
 export const extractHtmlPayload: (page: Page, route: string) => Promise<{ success: boolean, redirected?: false | string, message?: string, payload?: string }> = async (page, route) => {
-// ... (rest of extractHtmlPayload remains the same)
   const { worker, resolvedConfig } = useUnlighthouse()
 
   // if we don't need to execute any javascript we can do a less expensive fetch of the URL
@@ -58,6 +57,8 @@ export const extractHtmlPayload: (page: Page, route: string) => Promise<{ succes
     await page.setCacheEnabled(false)
     await page.setRequestInterception(true)
     page.on('request', (request) => {
+      if (resolvedConfig.scanner.suppressKlaviyo && request.url().toLowerCase().includes('klaviyo.com'))
+        return request.abort()
       if (['image', 'stylesheet', 'font', 'other'].includes(request.resourceType()))
         request.abort()
       else

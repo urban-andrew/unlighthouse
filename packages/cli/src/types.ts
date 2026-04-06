@@ -26,6 +26,7 @@ export interface CliOptions {
   disableI18nPages?: boolean
   enableJavascript?: boolean
   disableJavascript?: boolean
+  suppressKlaviyo?: boolean
   disableRobotsTxt?: boolean
   disableSitemap?: boolean
   disableDynamicSampling?: boolean

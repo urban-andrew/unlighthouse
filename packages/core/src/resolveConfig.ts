@@ -12,7 +12,7 @@ import { pick } from 'lodash-es'
 import { resolve as resolveModule } from 'mlly'
 import puppeteer, { launch } from 'puppeteer-core'
 import { PUPPETEER_REVISIONS } from 'puppeteer-core/lib/cjs/puppeteer/revisions.js'
-import { defaultConfig } from './constants'
+import { defaultConfig, KLAVIYO_BLOCKED_URL_PATTERNS } from './constants'
 import { useLogger } from './logger'
 import { normaliseHost, withSlashes } from './util'
 
@@ -113,6 +113,14 @@ export const resolveUserConfig: (userConfig: UserConfig) => Promise<ResolvedUser
       const credentials = `${config.auth.username}:${config.auth.password}`
       config.lighthouseOptions.extraHeaders.Authorization = `Basic ${Buffer.from(credentials).toString('base64')}`
     }
+  }
+
+  if (config.scanner?.suppressKlaviyo) {
+    const existing = config.lighthouseOptions.blockedUrlPatterns
+    config.lighthouseOptions.blockedUrlPatterns = [
+      ...(Array.isArray(existing) ? existing : []),
+      ...KLAVIYO_BLOCKED_URL_PATTERNS,
+    ]
   }
 
   if (config.client?.columns) {

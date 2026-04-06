@@ -161,6 +161,12 @@ export const DefaultColumns: Record<UnlighthouseTabs, UnlighthouseColumn[]> = {
   ],
 }
 
+/**
+ * Patterns for Lighthouse `blockedUrlPatterns` (DevTools network blocking) to skip Klaviyo onsite scripts and APIs.
+ * @see https://github.com/GoogleChrome/lighthouse/blob/main/docs/configuration.md
+ */
+export const KLAVIYO_BLOCKED_URL_PATTERNS = ['*klaviyo.com*'] as const
+
 export const defaultConfig: UserConfig = {
   routerPrefix: '/',
   apiPrefix: '/api',
@@ -185,6 +191,7 @@ export const defaultConfig: UserConfig = {
     sitemap: true,
     robotsTxt: true,
     device: 'mobile',
+    suppressKlaviyo: false,
   },
   // @ts-expect-error provided by server package, may not be provided in CI mode
   server: {
