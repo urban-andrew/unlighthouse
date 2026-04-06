@@ -1,12 +1,13 @@
 import type { NormalisedRoute, ScanMeta, UnlighthouseRouteReport } from '@unlighthouse/core'
 import { sum } from 'lodash-es'
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { joinURL } from 'ufo'
 import CellRouteName from '../components/Cell/CellRouteName.vue'
 import CellScoreSingle from '../components/Cell/CellScoreSingle.vue'
 import CellScoresOverview from '../components/Cell/CellScoresOverview.vue'
 import { useFetch } from './fetch'
 import { sorting } from './search'
-import { categories, columns, isStatic, resolveArtifactPath, wsUrl } from './static'
+import { basePath, categories, columns, device, dualDevice, isStatic, wsUrl } from './static'
 
 export const activeTab = ref(0)
 
@@ -105,9 +106,50 @@ export const resultColumns = computed(() => {
 
 export const wsReports: Map<string, UnlighthouseRouteReport> = reactive(new Map<string, UnlighthouseRouteReport>())
 
-export const unlighthouseReports = computed<UnlighthouseRouteReport[]>(() => {
+const primaryFormFactor: 'mobile' | 'desktop' = !device || device === 'mobile' ? 'mobile' : 'desktop'
+export const viewFormFactor = ref<'mobile' | 'desktop'>(primaryFormFactor)
+/** Bumps when toggling mobile/desktop so static payloads re-render. */
+export const dualViewTick = ref(0)
+
+export function resolveArtifactPath(report: UnlighthouseRouteReport, file: string) {
+  if (!report?.artifactUrl) {
+    return ''
+  }
+  const withoutBase = report.artifactUrl.replace(basePath, '')
+  const deviceSeg = dualDevice ? `${viewFormFactor.value}/` : ''
   if (isStatic) {
-    return window.__unlighthouse_payload?.reports || []
+    let cleanPathname = window.location.pathname
+    cleanPathname = cleanPathname.replace(/\/index\.html$/, '')
+    return joinURL(cleanPathname, withoutBase, deviceSeg, file)
+  }
+  return joinURL(window.location.pathname, withoutBase, deviceSeg, file)
+}
+
+function applyReportViewForFormFactor(report: UnlighthouseRouteReport) {
+  if (!dualDevice || !report.reportByFormFactor)
+    return
+  const next = report.reportByFormFactor[viewFormFactor.value]
+  if (next)
+    report.report = next
+}
+
+watch(viewFormFactor, () => {
+  dualViewTick.value++
+  if (!dualDevice)
+    return
+  for (const r of wsReports.values())
+    applyReportViewForFormFactor(r)
+  if (isStatic) {
+    for (const r of window.__unlighthouse_payload?.reports || [])
+      applyReportViewForFormFactor(r)
+  }
+})
+
+export const unlighthouseReports = computed<UnlighthouseRouteReport[]>(() => {
+  void dualViewTick.value
+  if (isStatic) {
+    const r = window.__unlighthouse_payload?.reports || []
+    return [...r]
   }
   return Array.from(wsReports.values())
 })
@@ -182,6 +224,7 @@ export async function wsConnect() {
         const { response } = JSON.parse(message.data)
         if (response?.route?.path) {
           wsReports.set(response.route.path, response)
+          applyReportViewForFormFactor(response)
         }
       }
       catch (error) {
@@ -201,6 +244,7 @@ export async function wsConnect() {
         reports.data.value.forEach((report) => {
           if (report?.route?.path) {
             wsReports.set(report.route.path, report)
+            applyReportViewForFormFactor(report)
           }
         })
       }

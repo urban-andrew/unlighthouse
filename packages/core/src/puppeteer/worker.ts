@@ -366,6 +366,10 @@ export async function createUnlighthouseWorker(tasks: Record<UnlighthouseTask, T
     const currentRetries = retriedRoutes.get(report.route.id) || 0
     logger.info(`Submitting \`${report.route.path}\` for a re-queue (attempt ${currentRetries}/3).`)
     // clean up artifacts
+    if (resolvedConfig.scanner.dualDevice) {
+      fs.rmSync(join(report.artifactPath, 'mobile'), { force: true, recursive: true })
+      fs.rmSync(join(report.artifactPath, 'desktop'), { force: true, recursive: true })
+    }
     Object.values(ReportArtifacts).forEach((artifact) => {
       fs.rmSync(join(report.artifactPath, artifact), { force: true, recursive: true })
     })

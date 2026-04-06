@@ -151,8 +151,8 @@ export const resolveUserConfig: (userConfig: UserConfig) => Promise<ResolvedUser
   if (config.lighthouseOptions.formFactor === 'desktop') {
     config.lighthouseOptions.screenEmulation = {
       mobile: false,
-      width: 1350,
-      height: 940,
+      width: 1920,
+      height: 1080,
       deviceScaleFactor: 1,
       disabled: false,
     }

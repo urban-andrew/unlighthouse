@@ -28,6 +28,7 @@ export default function createCli() {
   cli.option('--enable-javascript', 'When inspecting the HTML wait for the javascript to execute. Useful for SPAs.')
   cli.option('--disable-javascript', 'When inspecting the HTML, don\'t wait for the javascript to execute.')
   cli.option('--suppress-klaviyo', 'Block Klaviyo requests during scans so onsite modals do not skew performance metrics.')
+  cli.option('--dual-device', 'Run Lighthouse for both mobile and desktop; toggle views in the UI.')
   cli.option('--enable-i18n-pages', 'Enable scanning pages which use x-default.')
   cli.option('--disable-i18n-pages', 'Disable scanning pages which use x-default.')
   cli.option('--urls <urls>', 'Specify explicit relative paths to scan as a comma-separated list, disabling the link crawler.')

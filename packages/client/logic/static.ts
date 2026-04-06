@@ -1,6 +1,5 @@
-import type { UnlighthouseRouteReport } from '@unlighthouse/core'
 import { startCase } from 'lodash-es'
-import { $URL, joinURL } from 'ufo'
+import { $URL } from 'ufo'
 import CellColorContrast from '../components/Cell/CellColorContrast.vue'
 import CellImage from '../components/Cell/CellImage.vue'
 import CellImageIssues from '../components/Cell/CellImageIssues.vue'
@@ -35,6 +34,7 @@ const {
       dynamicSampling,
       throttle,
       device,
+      dualDevice = false,
     },
     routerPrefix: basePath,
   },
@@ -42,25 +42,7 @@ const {
 
 export const isStatic = window.__unlighthouse_static
 
-export function resolveArtifactPath(report: UnlighthouseRouteReport, file: string) {
-  if (!report?.artifactUrl) {
-    return '' // Return empty string for missing artifact URLs
-  }
-  const withoutBase = report.artifactUrl.replace(basePath, '')
-
-  if (isStatic) {
-    // Clean up the pathname to remove trailing /index.html and similar artifacts
-    let cleanPathname = window.location.pathname
-    // Remove common static file names that shouldn't be part of the base path
-    cleanPathname = cleanPathname.replace(/\/index\.html$/, '')
-
-    return joinURL(cleanPathname, withoutBase, file)
-  }
-
-  return joinURL(window.location.pathname, withoutBase, file) // dynamic base
-}
-
-export { apiUrl, basePath, device, dynamicSampling, groupRoutesKey, lighthouseOptions, throttle, wsUrl }
+export { apiUrl, basePath, device, dualDevice, dynamicSampling, groupRoutesKey, lighthouseOptions, throttle, wsUrl }
 
 export const website = new $URL(site).origin
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatDistance } from 'date-fns'
-import { basePath, isDark, isOffline, isRescanSiteRequestRunning, isStatic, rescanSite, scanMeta, toggleDark, website } from '../logic'
+import { basePath, dualDevice, isDark, isOffline, isRescanSiteRequestRunning, isStatic, rescanSite, scanMeta, toggleDark, viewFormFactor, website } from '../logic'
 
 const timeRemaining = computed(() => {
   return formatDistance(0, scanMeta.value.monitor.timeRemaining, { includeSeconds: true })
@@ -55,8 +55,27 @@ const favIcon = computed(() => {
             <loading-spinner v-else class="h-[24px]" />
           </div>
         </div>
+        <div v-if="dualDevice && scanMeta" class="mr-3 flex shrink-0 items-center gap-1 md:mr-5">
+          <span class="hidden lg:inline text-gray-500 dark:text-gray-400 uppercase opacity-70 mr-1">View</span>
+          <UButton
+            size="xs"
+            :color="viewFormFactor === 'mobile' ? 'primary' : 'gray'"
+            :variant="viewFormFactor === 'mobile' ? 'solid' : 'ghost'"
+            @click="viewFormFactor = 'mobile'"
+          >
+            Mobile
+          </UButton>
+          <UButton
+            size="xs"
+            :color="viewFormFactor === 'desktop' ? 'primary' : 'gray'"
+            :variant="viewFormFactor === 'desktop' ? 'solid' : 'ghost'"
+            @click="viewFormFactor = 'desktop'"
+          >
+            Desktop
+          </UButton>
+        </div>
       </div>
-      <div v-if="scanMeta?.monitor?.allTargets > 0" class="flex grow justify-around md:mr-5">
+      <div v-if="scanMeta?.monitor?.allTargets > 0" class="flex grow justify-around md:mr-5 items-center">
         <search-box class="grow mr-3 md:mr-5" />
         <UDropdownMenu
           :items="[[{

@@ -17,7 +17,7 @@ interface RunRow extends RunSnapshot {
 
 function averageCategory(routes: RunSnapshot['routes'], key: string): number | null {
   const vals = routes
-    .map(r => r.categories[key])
+    .map(r => r?.categories?.[key])
     .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
   if (!vals.length)
     return null
@@ -31,8 +31,8 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function pct(n: number | null): string {
-  if (n === null || Number.isNaN(n))
+function pct(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n))
     return '—'
   return `${Math.round(n * 100)}%`
 }
@@ -41,30 +41,68 @@ function pct(n: number | null): string {
  * Static HTML overview of all runs under `baseDir` (reads index.json and each run folder's run.json).
  */
 export async function writeLocalHistoryDashboard(baseDir: string): Promise<void> {
+  try {
+    await writeLocalHistoryDashboardInner(baseDir)
+  }
+  catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    await writeDashboardError(baseDir, msg).catch(() => {})
+  }
+}
+
+async function writeLocalHistoryDashboardInner(baseDir: string): Promise<void> {
   const indexPath = join(baseDir, 'index.json')
   if (!await fs.pathExists(indexPath))
     return
-  const index = (await fs.readJson(indexPath)) as { runs: string[] }
+
+  let index: { runs?: string[] }
+  try {
+    index = (await fs.readJson(indexPath)) as { runs?: string[] }
+  }
+  catch {
+    await writeDashboardError(
+      baseDir,
+      'Could not read index.json. Delete history/ and run a new scan, or fix the file.',
+    )
+    return
+  }
+
+  const runIds = Array.isArray(index.runs) ? index.runs : []
   const rows: RunRow[] = []
-  for (const runId of index.runs) {
+  for (const runId of runIds) {
+    if (!runId || typeof runId !== 'string')
+      continue
     const p = join(baseDir, runId, 'run.json')
     if (!await fs.pathExists(p))
       continue
-    const snap = (await fs.readJson(p)) as RunSnapshot
-    const avgScore = snap.routes.length
-      ? snap.routes.reduce((a, r) => a + (r.score ?? 0), 0) / snap.routes.length
+    let snap: RunSnapshot
+    try {
+      snap = (await fs.readJson(p)) as RunSnapshot
+    }
+    catch {
+      continue
+    }
+    const routeList = Array.isArray(snap.routes) ? snap.routes : []
+    const runAt = typeof snap.runAt === 'string' ? snap.runAt : new Date().toISOString()
+    const avgScore = routeList.length
+      ? routeList.reduce((a, r) => a + (r?.score ?? 0), 0) / routeList.length
       : null
     rows.push({
       runId,
-      ...snap,
+      site: typeof snap.site === 'string' ? snap.site : '',
+      configCacheKey: snap.configCacheKey,
+      routeCount: typeof snap.routeCount === 'number' ? snap.routeCount : routeList.length,
+      routes: routeList,
+      runAt,
       avgScore,
-      avgPerformance: averageCategory(snap.routes, 'performance'),
+      avgPerformance: averageCategory(routeList, 'performance'),
     })
   }
 
   const tableRows = rows.map((r) => {
-    const bar = r.avgScore !== null ? Math.round(r.avgScore * 100) : 0
-    const dt = esc(r.runAt.slice(0, 19).replace('T', ' '))
+    const bar = r.avgScore !== null && !Number.isNaN(r.avgScore) ? Math.round(r.avgScore * 100) : 0
+    const safeAt = typeof r.runAt === 'string' ? r.runAt : ''
+    const dt = esc(safeAt.slice(0, 19).replace('T', ' '))
     return [
       '<tr>',
       '<td><time datetime="' + esc(r.runAt) + '">' + dt + '</time></td>',
@@ -118,5 +156,22 @@ export async function writeLocalHistoryDashboard(baseDir: string): Promise<void>
     '</html>',
   ].join('\n')
 
+  await fs.ensureDir(baseDir)
+  await fs.writeFile(join(baseDir, 'dashboard.html'), html, 'utf8')
+}
+
+async function writeDashboardError(baseDir: string, message: string): Promise<void> {
+  const escMsg = esc(message)
+  const html = [
+    '<!DOCTYPE html>',
+    '<html lang="en"><head><meta charset="utf-8"><title>Unlighthouse history error</title>',
+    '<style>body{font-family:system-ui;padding:2rem;max-width:560px;margin:auto;background:#1a1a1a;color:#eee}</style>',
+    '</head><body>',
+    '<h1>Dashboard could not be generated</h1>',
+    '<p>' + escMsg + '</p>',
+    '<p style="opacity:.85;font-size:14px">Tip: open via <code>npx sirv .unlighthouse</code> and visit <code>/history/dashboard.html</code> (opening the file directly as <code>file://</code> is fine for this static page).</p>',
+    '</body></html>',
+  ].join('\n')
+  await fs.ensureDir(baseDir)
   await fs.writeFile(join(baseDir, 'dashboard.html'), html, 'utf8')
 }

@@ -64,7 +64,12 @@ export async function persistLocalRunHistory(
 
   if (opts.dashboard !== false) {
     await writeLocalHistoryDashboard(baseDir).catch((e: unknown) => {
-      useLogger().warn('Failed to write local history dashboard.', e)
+      try {
+        useLogger().warn('Failed to write local history dashboard.', e)
+      }
+      catch {
+        console.warn('[unlighthouse] Failed to write local history dashboard.', e)
+      }
     })
   }
 }

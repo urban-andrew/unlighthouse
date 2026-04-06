@@ -118,6 +118,11 @@ export interface UnlighthouseRouteReport {
    */
   report?: LighthouseReport
   /**
+   * When `scanner.dualDevice` is enabled, separate Lighthouse runs for mobile and desktop.
+   * `report` mirrors the active view (default: `scanner.device`) or the client UI toggle.
+   */
+  reportByFormFactor?: Partial<Record<'mobile' | 'desktop', LighthouseReport>>
+  /**
    * The SEO meta-data, only set once the html payload has been extracted and passed.
    */
   seo?: HTMLExtractPayload
@@ -510,6 +515,13 @@ export interface ResolvedUserConfig {
      * @default false
      */
     suppressKlaviyo: boolean
+    /**
+     * Run Lighthouse separately for mobile and desktop; artifacts live under `mobile/` and `desktop/`
+     * under each route folder. The client can toggle which scores and HTML reports are shown.
+     *
+     * @default false
+     */
+    dualDevice: boolean
     /**
      * Resolved robots.txt groups.
      * @internal

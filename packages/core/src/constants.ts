@@ -192,6 +192,7 @@ export const defaultConfig: UserConfig = {
     robotsTxt: true,
     device: 'mobile',
     suppressKlaviyo: false,
+    dualDevice: false,
   },
   // @ts-expect-error provided by server package, may not be provided in CI mode
   server: {

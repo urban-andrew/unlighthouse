@@ -105,6 +105,9 @@ export function pickOptions(options: CiOptions | CliOptions): UserConfig {
   if (options.suppressKlaviyo)
     picked.scanner.suppressKlaviyo = true
 
+  if (options.dualDevice)
+    picked.scanner.dualDevice = true
+
   if (options.samples)
     picked.scanner.samples = options.samples
 
