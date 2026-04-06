@@ -6,10 +6,11 @@ export default defineConfig({
   scanner: {
     suppressKlaviyo: true,
     dualDevice: true, // run Lighthouse for mobile and desktop; use the nav bar to switch views
-    //Full URLs: XML sitemap, or HTML pages like https://urbanstems.com/pages/sitemap (links are extracted).
-    //Raise maxRoutes if the sitemap lists more than the default cap.
+    // Full URLs: XML sitemap, or HTML pages like https://urbanstems.com/pages/sitemap (links are extracted).
+    // Raise maxRoutes if the sitemap lists more than the default cap.
     sitemap: ['https://urbanstems.com/pages/sitemap'],
     maxRoutes: 500,
+    dynamicSampling: false,
   },
   // Saves each run under `.unlighthouse/history/<timestamp>/run.json` + `index.json` for local diffing.
   localHistory: {
