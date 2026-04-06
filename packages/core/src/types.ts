@@ -123,6 +123,10 @@ export interface UnlighthouseRouteReport {
    */
   reportByFormFactor?: Partial<Record<'mobile' | 'desktop', LighthouseReport>>
   /**
+   * @internal When refreshing one form factor in dual mode, only that Lighthouse run is executed.
+   */
+  _refreshFormFactorOnly?: 'mobile' | 'desktop'
+  /**
    * The SEO meta-data, only set once the html payload has been extracted and passed.
    */
   seo?: HTMLExtractPayload
@@ -814,6 +818,10 @@ export interface UnlighthouseWorker {
    * @param report
    */
   requeueReport: (report: UnlighthouseRouteReport) => void
+  /**
+   * Re-run Lighthouse for one form factor only (requires `scanner.dualDevice`).
+   */
+  refreshLighthouseFormFactor: (formFactor: 'mobile' | 'desktop') => void
   /**
    * Has the worker started processing the queue.
    */

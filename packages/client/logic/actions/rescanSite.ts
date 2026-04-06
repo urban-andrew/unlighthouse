@@ -15,3 +15,14 @@ export function rescanSite(done: () => void) {
 export const isRescanSiteRequestRunning = computed(() => {
   return rescanSiteRequest.value?.isFetching
 })
+
+export const refreshLighthouseFormFactorRequest: Ref<UseFetchReturn<any> | null> = ref(null)
+
+export function refreshLighthouseFormFactor(formFactor: 'mobile' | 'desktop') {
+  const fetch = useFetch<UseFetchReturn<any>>('/reports/rescan-lighthouse').post({ formFactor })
+  refreshLighthouseFormFactorRequest.value = fetch
+}
+
+export const isRefreshLighthouseFormFactorRunning = computed(() => {
+  return refreshLighthouseFormFactorRequest.value?.isFetching
+})

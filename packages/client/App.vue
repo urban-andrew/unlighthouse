@@ -13,11 +13,14 @@ import {
   closeThumbnailsModal,
   contentModalOpen,
   device,
+  dualDevice,
   dynamicSampling,
   iframeModalUrl,
   incrementSort,
   isDebugModalOpen,
   isOffline,
+  isRefreshLighthouseFormFactorRunning,
+  isRouteSelected,
   isStatic,
   lighthouseOptions,
   lighthouseReportModalOpen,
@@ -26,16 +29,19 @@ import {
   page,
   paginatedResults,
   perPage,
+  refreshLighthouseFormFactor,
   refreshScanMeta,
   rescanRoute,
   resultColumns,
   searchResults,
   searchText,
+  selectSameGroupAs,
   shouldShowWaitingState,
   sorting,
   tabs,
   throttle,
   thumbnailsModalOpen,
+  toggleRouteSelection,
   website,
   wsConnect,
 } from './logic'
@@ -165,6 +171,33 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                 </Tab>
               </TabList>
             </TabGroup>
+            <div v-if="dualDevice && activeTab === 0 && !isStatic" class="mt-3 space-y-2">
+              <div class="text-xs uppercase opacity-60">
+                Refresh Lighthouse
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  :disabled="isOffline"
+                  :loading="isRefreshLighthouseFormFactorRunning"
+                  @click="refreshLighthouseFormFactor('mobile')"
+                >
+                  Run mobile
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  :disabled="isOffline"
+                  :loading="isRefreshLighthouseFormFactorRunning"
+                  @click="refreshLighthouseFormFactor('desktop')"
+                >
+                  Run desktop
+                </UButton>
+              </div>
+            </div>
             <div v-if="dynamicSampling" class="text-sm opacity-70 mt-3">
               <p>Dynamically sampling is enabled, not all pages are being scanned.</p>
               <p><a href="https://unlighthouse.dev/guide/guides/dynamic-sampling" target="_blank" class="underline">Learn more</a></p>
@@ -365,9 +398,28 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
               <results-route
                 v-for="(report, routeName) in paginatedResults"
                 :key="routeName"
-                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask]"
+                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask, isRouteSelected(report.route.id)]"
                 :report="report"
               >
+                <template #select="{ report: r }">
+                  <div class="flex flex-col items-center gap-1">
+                    <input
+                      type="checkbox"
+                      class="rounded border-gray-400 dark:border-gray-500 cursor-pointer"
+                      :checked="isRouteSelected(r.route.id)"
+                      :disabled="isOffline || isStatic"
+                      @change="toggleRouteSelection(r)"
+                    >
+                    <btn-action
+                      class="text-[10px] px-1 py-0.5 rounded"
+                      :disabled="isOffline || isStatic ? 'disabled' : false"
+                      title="Select all routes in this group (same route definition)"
+                      @click="selectSameGroupAs(r)"
+                    >
+                      Group
+                    </btn-action>
+                  </div>
+                </template>
                 <template #actions>
                   <UDropdownMenu :items="getDropdownActions(report)" :content="{ placement: 'left' }">
                     <UButton

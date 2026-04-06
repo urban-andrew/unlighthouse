@@ -8,6 +8,8 @@ const props = defineProps<{
 }>()
 
 const value = computed(() => {
+  if (!props.column.key)
+    return undefined
   return get(props.report, props.column.key)
 })
 </script>

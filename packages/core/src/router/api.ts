@@ -1,7 +1,7 @@
 import type { App, Router } from 'h3'
 import { join } from 'node:path'
 import fs from 'fs-extra'
-import { createRouter, defineEventHandler, getQuery, getRouterParams, sendRedirect, serveStatic, setResponseHeader, setResponseStatus, useBase } from 'h3'
+import { createRouter, defineEventHandler, getQuery, getRouterParams, readBody, sendRedirect, serveStatic, setResponseHeader, setResponseStatus, useBase } from 'h3'
 import launch from 'launch-editor'
 import { createScanMeta } from '../data'
 import { useLogger } from '../logger'
@@ -33,6 +33,22 @@ export async function createApi(app: App): Promise<Router> {
     })
     worker.queueRoutes(reports.map(report => report.route))
     return true
+  }))
+
+  apiRouter.post('/reports/rescan-lighthouse', defineEventHandler(async (event) => {
+    const { worker, resolvedConfig } = useUnlighthouse()
+    const body = await readBody(event).catch(() => ({})) as { formFactor?: string }
+    const factor = body?.formFactor
+    if (factor !== 'mobile' && factor !== 'desktop') {
+      setResponseStatus(event, 400)
+      return { ok: false, error: 'formFactor must be "mobile" or "desktop"' }
+    }
+    if (!resolvedConfig.scanner.dualDevice) {
+      setResponseStatus(event, 400)
+      return { ok: false, error: 'scanner.dualDevice is not enabled' }
+    }
+    worker.refreshLighthouseFormFactor(factor)
+    return { ok: true }
   }))
 
   apiRouter.post('/reports/:id/rescan', defineEventHandler((event) => {

@@ -76,6 +76,9 @@ const thumbnail = computed(() => {
       <a v-else :href="report.route.url" target="_blank" class="text-xs opacity-80 underline break-all hover:no-underline">
         {{ report.route.path }}
       </a>
+      <div class="text-[11px] opacity-75 dark:opacity-65 break-all mt-0.5 leading-snug">
+        <a :href="report.route.url" target="_blank" class="hover:underline">{{ report.route.url }}</a>
+      </div>
       <div v-if="report.route.definition?.componentBaseName" class="flex items-center mt-2">
         <btn-action :disabled="isOffline ? 'disabled' : false" class="inline text-xs opacity-90 rounded-xl px-2 bg-surface dark:hover:bg-teal-700/70 hover:text-white hover:bg-blue-100" title="Open File" @click="openEditorRequest">
           <UIcon v-if="report.route.definition.componentBaseName.endsWith('.vue')" name="i-logos-vue" class="h-[8px] inline-block" />

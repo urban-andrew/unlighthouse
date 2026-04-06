@@ -1,5 +1,8 @@
 import type { NormalisedRoute, ScanMeta, UnlighthouseRouteReport } from '@unlighthouse/core'
-import { sum } from 'lodash-es'
+import { cloneDeep, sum } from 'lodash-es'
+
+/** Must match `ReportArtifacts.screenshotThumbnailsDir` in core (avoid importing @unlighthouse/core in client bundle). */
+const SCREENSHOT_THUMBNAILS_DIR = '__screenshot-thumbnails__'
 import { computed, reactive, ref, watch } from 'vue'
 import { joinURL } from 'ufo'
 import CellRouteName from '../components/Cell/CellRouteName.vue'
@@ -69,12 +72,18 @@ export function changedTab(index: number) {
 export const resultColumns = computed(() => {
   return [
     {
+      label: '',
+      slot: 'select',
+      cols: 1,
+      classes: ['justify-center', 'self-start', 'pt-1'],
+    },
+    {
       label: 'Page',
       slot: 'routeName',
       key: 'route.path',
       sortable: true,
       component: CellRouteName,
-      cols: 2,
+      cols: 1,
     },
     {
       label: 'Score',
@@ -125,12 +134,20 @@ export function resolveArtifactPath(report: UnlighthouseRouteReport, file: strin
   return joinURL(window.location.pathname, withoutBase, deviceSeg, file)
 }
 
+/**
+ * Filmstrip thumbnails: paths must follow the active form factor so desktop view does not show mobile frames.
+ */
+export function resolveScreenshotThumbnailUrl(report: UnlighthouseRouteReport, frameKey: string) {
+  void dualViewTick.value
+  return resolveArtifactPath(report, `/${SCREENSHOT_THUMBNAILS_DIR}/${frameKey}.jpeg`)
+}
+
 function applyReportViewForFormFactor(report: UnlighthouseRouteReport) {
   if (!dualDevice || !report.reportByFormFactor)
     return
   const next = report.reportByFormFactor[viewFormFactor.value]
   if (next)
-    report.report = next
+    report.report = cloneDeep(next)
 }
 
 watch(viewFormFactor, () => {

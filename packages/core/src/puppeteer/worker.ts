@@ -21,6 +21,7 @@ import { createProgressBox } from '../util/progressBox'
 import {
   launchPuppeteerCluster,
 } from './cluster'
+import { pickPrimaryReport } from './tasks/lighthouse'
 import { persistLocalRunHistory } from '../history/localRunHistory'
 
 let warnedMaxRoutesExceeded = false
@@ -403,11 +404,60 @@ export async function createUnlighthouseWorker(tasks: Record<UnlighthouseTask, T
 
   const findReport = (id: string) => reports().filter(report => report.reportId === id)?.[0]
 
+  const refreshLighthouseFormFactor = (formFactor: 'mobile' | 'desktop') => {
+    if (!resolvedConfig.scanner.dualDevice) {
+      logger.warn('refreshLighthouseFormFactor: scanner.dualDevice is not enabled.')
+      return
+    }
+    const runLighthouseTaskFn = tasks.runLighthouseTask
+    for (const report of routeReports.values()) {
+      if (report.tasks.inspectHtmlTask !== 'completed')
+        continue
+      fs.rmSync(join(report.artifactPath, formFactor), { force: true, recursive: true })
+      if (report.reportByFormFactor)
+        delete report.reportByFormFactor[formFactor]
+      report.report = pickPrimaryReport(report.reportByFormFactor || {}, resolvedConfig.scanner.device)
+      report._refreshFormFactorOnly = formFactor
+      report.tasks.runLighthouseTask = 'waiting'
+      const routePath = report.route.path
+      const rid = report.route.id
+      cluster.execute(report, (arg) => {
+        report.tasks.runLighthouseTask = 'in-progress'
+        if (!report.tasksTime)
+          report.tasksTime = {}
+        report.tasksTime.runLighthouseTask = Date.now()
+        currentTaskInfo = `runLighthouse - ${routePath}`
+        updateProgressDisplay()
+        hooks.callHook('task-started', routePath, report)
+        return runLighthouseTaskFn(arg)
+      }).then((response) => {
+        if (response.tasks.runLighthouseTask === 'failed')
+          return
+        if (response.tasks.runLighthouseTask === 'failed-retry') {
+          logger.warn(`Lighthouse form-factor refresh hit a retry for \`${routePath}\`; try Rescan Route or run the refresh again.`)
+          response.tasks.runLighthouseTask = 'failed'
+          routeReports.set(rid, response)
+          updateProgressDisplay()
+          return
+        }
+        response.tasks.runLighthouseTask = 'completed'
+        routeReports.set(rid, response)
+        hooks.callHook('task-complete', routePath, response, 'runLighthouseTask')
+        const ms = Date.now() - (response.tasksTime?.runLighthouseTask || Date.now())
+        if (!taskCompletionTimes.has(rid))
+          taskCompletionTimes.set(rid, {} as Record<UnlighthouseTask, number>)
+        taskCompletionTimes.get(rid)!.runLighthouseTask = ms
+        updateProgressDisplay()
+      })
+    }
+  }
+
   return {
     cluster,
     routeReports,
     exceededMaxRoutes,
     requeueReport,
+    refreshLighthouseFormFactor,
     invalidateFile,
     queueRoute,
     queueRoutes,

@@ -93,7 +93,7 @@ export function normaliseLighthouseResult(route: UnlighthouseRouteReport, result
   }
 }
 
-function pickPrimaryReport(
+export function pickPrimaryReport(
   by: Partial<Record<'mobile' | 'desktop', LighthouseReport>>,
   device: 'mobile' | 'desktop' | false,
 ): LighthouseReport | undefined {
@@ -204,6 +204,36 @@ export const runLighthouseTask: PuppeteerTask = async (props) => {
   const { page, data: routeReport } = props
 
   const dualDevice = !!resolvedConfig.scanner.dualDevice
+
+  if (dualDevice && routeReport._refreshFormFactorOnly) {
+    const only = routeReport._refreshFormFactorOnly
+    delete routeReport._refreshFormFactorOnly
+    await setupPage(page)
+    const clonedRouteReport = { ...routeReport }
+    if (resolvedConfig.defaultQueryParams)
+      clonedRouteReport.route.url = withQuery(clonedRouteReport.route.url, resolvedConfig.defaultQueryParams)
+    const routeUrl = clonedRouteReport.route.url
+    const subPath = join(routeReport.artifactPath, only)
+    await fs.mkdir(subPath, { recursive: true })
+    const flags = applyFormFactorFlags(resolvedConfig.lighthouseOptions, only)
+    const outcome = await executeLighthouseRun(routeReport, subPath, flags, page, routeUrl)
+    if (outcome === 'failed') {
+      routeReport.tasks.runLighthouseTask = 'failed'
+      return routeReport
+    }
+    if (outcome === 'failed-retry') {
+      routeReport.tasks.runLighthouseTask = 'failed-retry'
+      return routeReport
+    }
+    await persistLighthouseBinaryArtifacts(subPath, outcome)
+    const normalized = normaliseLighthouseResult({ ...routeReport, artifactPath: subPath }, outcome)
+    routeReport.reportByFormFactor = {
+      ...routeReport.reportByFormFactor,
+      [only]: normalized,
+    }
+    routeReport.report = pickPrimaryReport(routeReport.reportByFormFactor, resolvedConfig.scanner.device)
+    return routeReport
+  }
 
   if (dualDevice) {
     const mobileJson = join(routeReport.artifactPath, 'mobile', ReportArtifacts.reportJson)
