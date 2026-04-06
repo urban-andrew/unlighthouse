@@ -40,7 +40,8 @@
     "skipLibCheck": true
   },
   "include": [
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "unlighthouse.config.ts"
   ],
   "exclude": [
     "**/dist/**",

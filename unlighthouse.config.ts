@@ -1,6 +1,6 @@
-import { defineUnlighthouseConfig } from 'unlighthouse/config'
+import { defineConfig } from '@unlighthouse/core'
 
-export default defineUnlighthouseConfig({
+export default defineConfig({
   // Set your origin here, or pass `--site https://…` when running the CLI.
   // site: 'https://example.com',
   scanner: {
