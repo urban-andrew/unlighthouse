@@ -29,9 +29,28 @@ export interface LocalHistoryWow {
   byType: Record<PageType, number | null>
 }
 
+/** Deltas vs different baselines (latest run is always the “current” side). */
+export interface LocalHistoryComparisons {
+  /** Immediate previous scan in history (same as legacy top-level `wow`). */
+  consecutive: LocalHistoryWow | null
+  /** Latest run vs most recent run on the previous UTC calendar day. */
+  dod: LocalHistoryWow | null
+  /** Latest run vs most recent run at least ~7 days older. */
+  wow: LocalHistoryWow | null
+  /** Latest run vs most recent run at least ~30 days older. */
+  mom: LocalHistoryWow | null
+  /** Latest run vs most recent run at least ~365 days older. */
+  yoy: LocalHistoryWow | null
+}
+
 export interface LocalHistorySummaryResponse {
   enabled: true
+  /** Completed scans in chronological order (oldest → newest). */
   runs: LocalHistoryRunSummary[]
+  /** At most one snapshot per UTC calendar day (latest run that day); for charting as daily points. */
+  runsDaily: LocalHistoryRunSummary[]
+  comparisons: LocalHistoryComparisons
+  /** @deprecated Use `comparisons.consecutive` — kept for older clients. */
   wow: LocalHistoryWow | null
 }
 
@@ -76,6 +95,79 @@ function buildWow(latest: LocalHistoryRunSummary, previous: LocalHistoryRunSumma
   }
 }
 
+function utcDayKey(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10)
+}
+
+/** One point per UTC day: last completed scan that day wins (chronological input). */
+function buildRunsDaily(runsChronological: LocalHistoryRunSummary[]): LocalHistoryRunSummary[] {
+  const byDay = new Map<string, LocalHistoryRunSummary>()
+  for (const r of runsChronological) {
+    const day = utcDayKey(r.runAt)
+    byDay.set(day, r)
+  }
+  return [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v)
+}
+
+/** Latest run on the previous UTC calendar day (if any). */
+function findBaselinePreviousDay(latest: LocalHistoryRunSummary, newestFirst: LocalHistoryRunSummary[]): LocalHistoryRunSummary | null {
+  const latestDay = utcDayKey(latest.runAt)
+  const d = new Date(`${latestDay}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() - 1)
+  const prevKey = d.toISOString().slice(0, 10)
+  let best: LocalHistoryRunSummary | null = null
+  for (const r of newestFirst) {
+    if (utcDayKey(r.runAt) !== prevKey)
+      continue
+    if (!best || +new Date(r.runAt) > +new Date(best.runAt))
+      best = r
+  }
+  return best
+}
+
+/** Most recent run that is at least `minDays` older than `latest` (by wall-clock gap). */
+function findBaselineMinimumDaysAgo(latest: LocalHistoryRunSummary, newestFirst: LocalHistoryRunSummary[], minDays: number): LocalHistoryRunSummary | null {
+  const latestTs = +new Date(latest.runAt)
+  const minMs = minDays * 24 * 60 * 60 * 1000
+  let best: LocalHistoryRunSummary | null = null
+  let bestTs = -Infinity
+  for (const r of newestFirst) {
+    if (r.runId === latest.runId)
+      continue
+    const rTs = +new Date(r.runAt)
+    if (latestTs - rTs < minMs)
+      continue
+    if (rTs > bestTs) {
+      best = r
+      bestTs = rTs
+    }
+  }
+  return best
+}
+
+function buildComparisons(newestFirst: LocalHistoryRunSummary[]): LocalHistoryComparisons {
+  if (newestFirst.length === 0) {
+    return {
+      consecutive: null,
+      dod: null,
+      wow: null,
+      mom: null,
+      yoy: null,
+    }
+  }
+  const latest = newestFirst[0]!
+  const consecutive = newestFirst.length >= 2 ? buildWow(latest, newestFirst[1]!) : null
+  const dodPrev = findBaselinePreviousDay(latest, newestFirst)
+  const dod = dodPrev ? buildWow(latest, dodPrev) : null
+  const wowPrev = findBaselineMinimumDaysAgo(latest, newestFirst, 7)
+  const wow = wowPrev ? buildWow(latest, wowPrev) : null
+  const momPrev = findBaselineMinimumDaysAgo(latest, newestFirst, 30)
+  const mom = momPrev ? buildWow(latest, momPrev) : null
+  const yoyPrev = findBaselineMinimumDaysAgo(latest, newestFirst, 365)
+  const yoy = yoyPrev ? buildWow(latest, yoyPrev) : null
+  return { consecutive, dod, wow, mom, yoy }
+}
+
 /**
  * Reads `.unlighthouse/<subdir>/index.json` and each `run.json`; returns data for the Historical dashboard.
  */
@@ -94,6 +186,14 @@ export async function readLocalHistorySummary(
     return {
       enabled: true,
       runs: [],
+      runsDaily: [],
+      comparisons: {
+        consecutive: null,
+        dod: null,
+        wow: null,
+        mom: null,
+        yoy: null,
+      },
       wow: null,
     }
   }
@@ -106,6 +206,14 @@ export async function readLocalHistorySummary(
     return {
       enabled: true,
       runs: [],
+      runsDaily: [],
+      comparisons: {
+        consecutive: null,
+        dod: null,
+        wow: null,
+        mom: null,
+        yoy: null,
+      },
       wow: null,
     }
   }
@@ -133,14 +241,18 @@ export async function readLocalHistorySummary(
 
   // Newest first (index.json stores newest first)
   const newestFirst = [...summaries]
-  const wow = newestFirst.length >= 2 ? buildWow(newestFirst[0]!, newestFirst[1]!) : null
+  const comparisons = buildComparisons(newestFirst)
+  const wow = comparisons.consecutive
 
   // Chart: oldest → newest (time asc)
   const runsChronological = [...newestFirst].reverse()
+  const runsDaily = buildRunsDaily(runsChronological)
 
   return {
     enabled: true,
     runs: runsChronological,
+    runsDaily,
+    comparisons,
     wow,
   }
 }

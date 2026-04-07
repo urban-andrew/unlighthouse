@@ -86,7 +86,7 @@ export async function createApi(app: App): Promise<Router> {
   apiRouter.get('/local-history', defineEventHandler(async () => {
     const summary = await readLocalHistorySummary(resolvedConfig, runtimeSettings)
     if (!summary)
-      return { enabled: false as const, runs: [], wow: null }
+      return { enabled: false as const, runs: [], runsDaily: [], comparisons: null, wow: null }
     return summary
   }))
 

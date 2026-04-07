@@ -4,11 +4,17 @@ import { useRuntimeConfig } from '#imports'
 import { $fetch } from 'ofetch'
 import { withHttps, withTrailingSlash } from 'ufo'
 
-type cwvKeys = [
+/** Metrics requested from CrUX History API (p75 time series). */
+const CRUX_HISTORY_METRICS = [
   'largest_contentful_paint',
   'cumulative_layout_shift',
   'interaction_to_next_paint',
-]
+  'first_contentful_paint',
+  'first_input_delay',
+  'experimental_time_to_first_byte',
+] as const
+
+type CruxHistoryMetricKey = (typeof CRUX_HISTORY_METRICS)[number]
 
 export async function fetchCrux(event: H3Event, domain: string, formFactor: 'PHONE' | 'TABLET' | 'DESKTOP' = 'PHONE') {
   const apiKey = useRuntimeConfig(event).google.cruxApiToken
@@ -28,6 +34,8 @@ export async function fetchCrux(event: H3Event, domain: string, formFactor: 'PHO
     body: {
       origin,
       formFactor,
+      collectionPeriodCount: 40,
+      metrics: [...CRUX_HISTORY_METRICS],
     },
   }).catch((e: FetchError) => {
     // 404 is okay, it just means there's no data for this domain
@@ -54,18 +62,16 @@ interface CrUXHistoryResult {
     formFactor: 'PHONE' | 'DESKTOP' | 'TABLET'
     origin: string
   }
-  metrics: {
-    [key in cwvKeys[number]]: {
-      histogramTimeseries: Array<{
-        start: number | string
-        end?: number | string
-        densities: number[]
-      }>
-      percentilesTimeseries: {
-        p75s: (number | null)[]
-      }
+  metrics: Partial<Record<CruxHistoryMetricKey, {
+    histogramTimeseries: Array<{
+      start: number | string
+      end?: number | string
+      densities: number[]
+    }>
+    percentilesTimeseries: {
+      p75s: (number | string | null)[]
     }
-  }
+  }>>
   collectionPeriods: Array<{
     firstDate: {
       year: number
@@ -81,46 +87,79 @@ interface CrUXHistoryResult {
 }
 
 interface NormalizedCrUXHistoryResult {
+  dates: number[]
+  cls?: { value: number, time: number }[]
+  lcp?: { value: number, time: number }[]
+  inp?: { value: number, time: number }[]
+  fcp?: { value: number, time: number }[]
+  fid?: { value: number, time: number }[]
+  ttfb?: { value: number, time: number }[]
 }
 
 function normaliseCruxHistory(data: CrUXHistoryResult): NormalizedCrUXHistoryResult {
   // we need to turn it into a time series data where we have each metric seperated into
   // an array like { value: number, time: number }[]
   // we also need to make sure that the data is sorted by time
-  const { cumulative_layout_shift, largest_contentful_paint, interaction_to_next_paint } = data.metrics
+  const m = data.metrics
   const dates = data.collectionPeriods.map(period => new Date(period.firstDate.year, period.firstDate.month, period.firstDate.day).getTime())
-  function normaliseP75(segment, i) {
-    // we should use the p75s data as the value
+  function normaliseP75(segment: number | string | null, i: number) {
+    if (segment === null || segment === undefined || segment === 'NaN')
+      return { value: 0, time: dates[i] }
+    const value = Number.parseFloat(String(segment))
     return {
-      value: Number.parseFloat(segment) || 0,
+      value: Number.isFinite(value) ? value : 0,
       time: dates[i],
     }
   }
-  const cls = (cumulative_layout_shift?.percentilesTimeseries?.p75s || []).map(normaliseP75)
-  const lcp = (largest_contentful_paint?.percentilesTimeseries?.p75s || []).map(normaliseP75)
-  const inp = (interaction_to_next_paint?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const cls = (m?.cumulative_layout_shift?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const lcp = (m?.largest_contentful_paint?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const inp = (m?.interaction_to_next_paint?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const fcp = (m?.first_contentful_paint?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const fid = (m?.first_input_delay?.percentilesTimeseries?.p75s || []).map(normaliseP75)
+  const ttfb = (m?.experimental_time_to_first_byte?.percentilesTimeseries?.p75s || []).map(normaliseP75)
 
-  const clsStart = cls.findIndex(v => v.value >= 0)
-  const lcpStart = lcp.findIndex(v => v.value > 0)
-  const inpStart = inp.findIndex(v => v.value > 0)
-  const indexes = [
-    clsStart,
-    lcpStart,
-    inpStart,
-  ].filter(i => i > -1)
-  if (!indexes.length)
-    return { dates: [], cls: [], lcp: [], inp: [] }
+  const series: Array<{ rows: { value: number, time: number }[], isCls: boolean }> = [
+    { rows: cls, isCls: true },
+    { rows: lcp, isCls: false },
+    { rows: inp, isCls: false },
+    { rows: fcp, isCls: false },
+    { rows: fid, isCls: false },
+    { rows: ttfb, isCls: false },
+  ]
 
-  // we need to compute the first index that we'll start the data from
-  // this index is the first index that has a value for all three data types above
-  const start = Math.min(...indexes)
-  // end should be the last index of a value greater than 0
-  const end = Math.max(cls.findLastIndex(v => v.value >= 0), lcp.findLastIndex(v => v.value > 0), inp.findLastIndex(v => v.value > 0))
+  function firstIdx(rows: { value: number }[], isCls: boolean) {
+    if (!rows.length)
+      return -1
+    return isCls ? rows.findIndex(v => v.value >= 0) : rows.findIndex(v => v.value > 0)
+  }
+  function lastIdx(rows: { value: number }[], isCls: boolean) {
+    if (!rows.length)
+      return -1
+    return isCls ? rows.findLastIndex(v => v.value >= 0) : rows.findLastIndex(v => v.value > 0)
+  }
+
+  const startIndexes = series.map(s => firstIdx(s.rows, s.isCls)).filter(i => i > -1)
+  const lastIndexes = series.map(s => lastIdx(s.rows, s.isCls)).filter(i => i > -1)
+  if (!startIndexes.length || !lastIndexes.length)
+    return { dates: [] }
+
+  const start = Math.min(...startIndexes)
+  const end = Math.max(...lastIndexes) + 1
+
+  function sliceOrUndefined(rows: { value: number, time: number }[], isCls: boolean) {
+    const s = firstIdx(rows, isCls)
+    if (s === -1)
+      return undefined
+    return rows.slice(start, end)
+  }
 
   return {
     dates: dates.slice(start, end),
-    cls: clsStart !== -1 ? cls.slice(start, end) : undefined,
-    lcp: lcpStart !== -1 ? lcp.slice(start, end) : undefined,
-    inp: inpStart !== -1 ? inp.slice(start, end) : undefined,
+    cls: sliceOrUndefined(cls, true),
+    lcp: sliceOrUndefined(lcp, false),
+    inp: sliceOrUndefined(inp, false),
+    fcp: sliceOrUndefined(fcp, false),
+    fid: sliceOrUndefined(fid, false),
+    ttfb: sliceOrUndefined(ttfb, false),
   }
 }

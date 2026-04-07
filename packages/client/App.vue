@@ -225,9 +225,12 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
         <div class="xl:w-full px-3 mr-5">
           <div v-if="filteredTabs[activeTab]?.label === 'CrUX'">
             <div>
-              <h2 class="font-bold text-2xl mb-7">
+              <h2 class="font-bold text-2xl mb-3">
                 Origin CrUX History - Mobile
               </h2>
+              <p class="text-sm opacity-80 mb-7 max-w-3xl">
+                Field <abbr title="75th percentile">p75</abbr> time series from the Chrome UX Report History API. The official Core Web Vitals are LCP, INP, and CLS; FCP, TTFB, and FID add context (FID is legacy—prefer INP).
+              </p>
             </div>
             <div v-if="!crux && !cruxError" class="w-full">
               <div class="text-gray-500 text-center w-full text-sm">
@@ -252,80 +255,173 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                 No data from Chrome UX report
               </div>
             </div>
-            <div v-else class="w-full flex-col flex space-y-5">
+            <div v-else class="w-full flex-col flex space-y-8">
               <div>
-                <div>
-                  <a href="https://web.dev/articles/inp" target="_blank" class="transition hover:underline">Interaction to Next Paint (INP)</a>
-                </div>
-                <div v-if="crux?.inp" class="flex items-center">
-                  <div class="w-full h-[200px] w-[400px] relative">
-                    <CruxGraphInp v-if="crux?.inp" :value="crux.inp" :height="200" />
+                <h3 class="font-semibold text-lg mb-4">
+                  Core Web Vitals
+                </h3>
+                <div class="flex-col flex space-y-5">
+                  <div>
+                    <div>
+                      <a href="https://web.dev/articles/lcp" target="_blank" class="transition hover:underline">Largest Contentful Paint (LCP)</a>
+                    </div>
+                    <div v-if="crux?.lcp" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphLcp v-if="crux?.lcp" :value="crux.lcp" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 2.5s
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 2.5s - 4s
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 4s
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="inline">
+                      <div class="text-gray-500 text-center inline w-full text-sm">
+                        No data
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <div class="text-green-500 font-bold">
-                      Good &lt; 200ms
+                    <div>
+                      <a href="https://web.dev/articles/inp" target="_blank" class="transition hover:underline">Interaction to Next Paint (INP)</a>
                     </div>
-                    <div class="text-yellow-500 font-bold">
-                      Needs Improvement 200ms - 500ms
+                    <div v-if="crux?.inp" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphInp v-if="crux?.inp" :value="crux.inp" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 200ms
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 200ms - 500ms
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 500ms
+                        </div>
+                      </div>
                     </div>
-                    <div class="text-red-500 font-bold">
-                      Poor &gt; 500ms
+                    <div v-else class="inline">
+                      <div class="inline text-gray-500 text-center w-full text-sm">
+                        No data
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div v-else class="inline">
-                  <div class="inline text-gray-500 text-center w-full text-sm">
-                    No data
+                  <div>
+                    <div><a href="https://web.dev/articles/cls" target="_blank" class="transition hover:underline">Cumulative Layout Shift (CLS)</a></div>
+                    <div v-if="crux?.cls" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphCls v-if="crux?.cls" :value="crux.cls" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 0.1
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 0.1 - 0.25
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 0.25
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="inline">
+                      <div class="text-gray-500 inline text-center w-full text-sm">
+                        No data
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
               <div>
-                <div><a href="https://web.dev/articles/cls" target="_blank" class="transition hover:underline">Cumulative Layout Shift (CLS)</a></div>
-                <div v-if="crux?.cls" class="flex items-center">
-                  <div class="w-full h-[200px] w-[400px] relative">
-                    <CruxGraphCls v-if="crux?.cls" :value="crux.cls" :height="200" />
+                <h3 class="font-semibold text-lg mb-4">
+                  Other field metrics
+                </h3>
+                <div class="flex-col flex space-y-5">
+                  <div>
+                    <div>
+                      <a href="https://web.dev/articles/fcp" target="_blank" class="transition hover:underline">First Contentful Paint (FCP)</a>
+                    </div>
+                    <div v-if="crux?.fcp" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphFcp v-if="crux?.fcp" :value="crux.fcp" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 1.8s
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 1.8s - 3s
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 3s
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="inline">
+                      <div class="text-gray-500 text-center inline w-full text-sm">
+                        No data
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <div class="text-green-500 font-bold">
-                      Good &lt; 0.1
+                    <div>
+                      <a href="https://web.dev/ttfb/" target="_blank" class="transition hover:underline">Time to First Byte (TTFB)</a>
                     </div>
-                    <div class="text-yellow-500 font-bold">
-                      Needs Improvement 0.1 - 0.25
+                    <div v-if="crux?.ttfb" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphTtfb v-if="crux?.ttfb" :value="crux.ttfb" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 800ms
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 800ms - 1.8s
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 1.8s
+                        </div>
+                      </div>
                     </div>
-                    <div class="text-red-500 font-bold">
-                      Poor &gt; 0.25
+                    <div v-else class="inline">
+                      <div class="text-gray-500 text-center inline w-full text-sm">
+                        No data
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div v-else class="inline">
-                  <div class="text-gray-500 inline text-center w-full text-sm">
-                    No data
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div>
-                  <a href="https://web.dev/articles/lcp" target="_blank" class="transition hover:underline">Largest Contentful Paint (LCP)</a>
-                </div>
-                <div v-if="crux?.lcp" class="flex items-center">
-                  <div class="w-full h-[200px] w-[400px] relative">
-                    <CruxGraphLcp v-if="crux?.lcp" :value="crux.lcp" :height="200" />
                   </div>
                   <div>
-                    <div class="text-green-500 font-bold">
-                      Good &lt; 2.5s
+                    <div>
+                      <a href="https://web.dev/fid/" target="_blank" class="transition hover:underline">First Input Delay (FID)</a>
+                      <span class="text-xs opacity-70 ml-1">(legacy)</span>
                     </div>
-                    <div class="text-yellow-500 font-bold">
-                      Needs Improvement 2.5s - 4s
+                    <div v-if="crux?.fid" class="flex items-center">
+                      <div class="w-full h-[200px] w-[400px] relative">
+                        <CruxGraphFid v-if="crux?.fid" :value="crux.fid" :height="200" />
+                      </div>
+                      <div>
+                        <div class="text-green-500 font-bold">
+                          Good &lt; 100ms
+                        </div>
+                        <div class="text-yellow-500 font-bold">
+                          Needs Improvement 100ms - 300ms
+                        </div>
+                        <div class="text-red-500 font-bold">
+                          Poor &gt; 300ms
+                        </div>
+                      </div>
                     </div>
-                    <div class="text-red-500 font-bold">
-                      Poor &gt; 4s
+                    <div v-else class="inline">
+                      <div class="text-gray-500 text-center inline w-full text-sm">
+                        No data
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div v-else class="inline">
-                  <div class="text-gray-500 text-center inline w-full text-sm">
-                    No data
                   </div>
                 </div>
               </div>

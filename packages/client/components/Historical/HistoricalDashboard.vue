@@ -21,8 +21,24 @@ interface Run {
 interface Payload {
   enabled: boolean
   runs: Run[]
+  runsDaily?: Run[]
+  comparisons?: {
+    consecutive: Wow | null
+    dod: Wow | null
+    wow: Wow | null
+    mom: Wow | null
+    yoy: Wow | null
+  } | null
   wow: Wow | null
 }
+
+const COMPARISON_OPTIONS = [
+  { key: 'consecutive' as const, label: 'Prior run', hint: 'vs the scan before this one' },
+  { key: 'dod' as const, label: 'DoD', hint: 'vs the latest scan on the previous UTC calendar day' },
+  { key: 'wow' as const, label: 'WoW', hint: 'vs the newest scan at least ~7 days older' },
+  { key: 'mom' as const, label: 'MoM', hint: 'vs the newest scan at least ~30 days older' },
+  { key: 'yoy' as const, label: 'YoY', hint: 'vs the newest scan at least ~365 days older' },
+]
 
 const TYPE_ORDER = [
   'homepage',
@@ -57,7 +73,41 @@ const TYPE_LABELS: Record<(typeof TYPE_ORDER)[number], string> = {
 const payload = ref<Payload | null>(null)
 const loadError = ref<string | null>(null)
 const chartEl = ref<HTMLDivElement | null>(null)
+const comparisonMode = ref<(typeof COMPARISON_OPTIONS)[number]['key']>('consecutive')
+/** When true, chart uses one point per UTC day (latest scan that day). */
+const useDailySeries = ref(true)
 let chart: ReturnType<typeof createChart> | null = null
+
+const comparisonsResolved = computed(() => {
+  const p = payload.value
+  if (!p?.enabled)
+    return null
+  if (p.comparisons)
+    return p.comparisons
+  return {
+    consecutive: p.wow,
+    dod: null,
+    wow: null,
+    mom: null,
+    yoy: null,
+  }
+})
+
+const activeComparison = computed(() => {
+  const c = comparisonsResolved.value
+  if (!c)
+    return null
+  return c[comparisonMode.value] ?? null
+})
+
+const chartRuns = computed(() => {
+  const p = payload.value
+  if (!p?.enabled || !p.runs?.length)
+    return []
+  if (useDailySeries.value && p.runsDaily?.length)
+    return p.runsDaily
+  return p.runs
+})
 
 function chartLayout() {
   return {
@@ -130,18 +180,18 @@ async function load() {
     const res = await $fetch<Payload>(`${apiUrl}/local-history`)
     payload.value = res
     await nextTick()
-    if (res.enabled && res.runs?.length)
-      redrawChart(res.runs)
+    if (res.enabled && chartRuns.value.length)
+      redrawChart(chartRuns.value)
   }
   catch (e) {
     loadError.value = e instanceof Error ? e.message : 'Failed to load history'
   }
 }
 
-watch(isDark, () => {
-  if (payload.value?.enabled && payload.value.runs?.length)
-    nextTick(() => redrawChart(payload.value!.runs))
-})
+watch([chartRuns, isDark, useDailySeries], () => {
+  if (payload.value?.enabled && chartRuns.value.length)
+    nextTick(() => redrawChart(chartRuns.value))
+}, { deep: true })
 
 onMounted(() => {
   load()
@@ -168,6 +218,10 @@ function barWidth(score: number | null) {
   if (score == null || Number.isNaN(score))
     return '0%'
   return `${Math.min(100, Math.max(0, score * 100))}%`
+}
+
+function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
+  return COMPARISON_OPTIONS.find(o => o.key === key)?.hint ?? ''
 }
 </script>
 
@@ -202,6 +256,30 @@ function barWidth(score: number | null) {
       </div>
 
       <template v-else>
+        <div class="space-y-3">
+          <div class="text-xs uppercase opacity-60">
+            Compare change (latest run vs baseline)
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="opt in COMPARISON_OPTIONS"
+              :key="opt.key"
+              type="button"
+              class="rounded-md px-3 py-1.5 text-sm font-medium border transition-colors"
+              :class="comparisonMode === opt.key
+                ? 'bg-teal-600 text-white border-teal-600 dark:bg-teal-700 dark:border-teal-700'
+                : 'bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'"
+              :title="opt.hint"
+              @click="comparisonMode = opt.key"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+          <p class="text-xs opacity-70 max-w-2xl">
+            {{ comparisonHint(comparisonMode) }}
+          </p>
+        </div>
+
         <div class="flex flex-wrap items-baseline gap-4">
           <div>
             <div class="text-xs uppercase opacity-60">
@@ -211,21 +289,63 @@ function barWidth(score: number | null) {
               {{ fmtScore(payload.runs[payload.runs.length - 1]?.siteAvg) }}
             </div>
           </div>
-          <div v-if="payload.wow?.siteAvgDeltaPct != null" class="rounded-lg px-3 py-1 bg-teal-50 dark:bg-teal-900/30 border border-teal-200/60 dark:border-teal-800">
-            <span class="text-xs uppercase opacity-70">WoW vs prior run</span>
+          <div
+            v-if="activeComparison?.siteAvgDeltaPct != null"
+            class="rounded-lg px-3 py-1 bg-teal-50 dark:bg-teal-900/30 border border-teal-200/60 dark:border-teal-800"
+          >
+            <span class="text-xs uppercase opacity-70">{{ COMPARISON_OPTIONS.find(o => o.key === comparisonMode)?.label }} Δ</span>
             <span
               class="ml-2 font-medium tabular-nums"
-              :class="payload.wow.siteAvgDeltaPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'"
+              :class="activeComparison.siteAvgDeltaPct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'"
             >
-              {{ fmtPct(payload.wow.siteAvgDeltaPct) }}
+              {{ fmtPct(activeComparison.siteAvgDeltaPct) }}
             </span>
+          </div>
+          <div
+            v-else
+            class="rounded-lg px-3 py-1 text-xs opacity-70 border border-dashed border-gray-300 dark:border-slate-600"
+          >
+            No baseline for this comparison (need more history or older scans).
           </div>
         </div>
 
         <div>
-          <h3 class="font-semibold text-lg mb-2">
-            Site average over time
-          </h3>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h3 class="font-semibold text-lg">
+              Site average over time
+            </h3>
+            <div class="flex items-center gap-2 text-sm">
+              <span class="text-xs opacity-70">Series</span>
+              <button
+                type="button"
+                class="rounded px-2 py-0.5 text-xs border transition-colors"
+                :class="useDailySeries
+                  ? 'bg-teal-100 dark:bg-teal-900/40 border-teal-300 dark:border-teal-700'
+                  : 'border-gray-300 dark:border-slate-600 opacity-80'"
+                @click="useDailySeries = true"
+              >
+                Daily (UTC)
+              </button>
+              <button
+                type="button"
+                class="rounded px-2 py-0.5 text-xs border transition-colors"
+                :class="!useDailySeries
+                  ? 'bg-teal-100 dark:bg-teal-900/40 border-teal-300 dark:border-teal-700'
+                  : 'border-gray-300 dark:border-slate-600 opacity-80'"
+                @click="useDailySeries = false"
+              >
+                Every scan
+              </button>
+            </div>
+          </div>
+          <p class="text-xs opacity-65 mb-2 max-w-3xl">
+            <template v-if="useDailySeries">
+              One datapoint per UTC calendar day: if you run multiple scans the same day, only the last one that day is plotted.
+            </template>
+            <template v-else>
+              One datapoint per completed scan (multiple runs on the same day appear as separate points).
+            </template>
+          </p>
           <div ref="chartEl" class="w-full h-[280px] rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden" />
         </div>
 
@@ -244,11 +364,11 @@ function barWidth(score: number | null) {
                 <span class="tabular-nums shrink-0">
                   {{ fmtScore(payload.runs[payload.runs.length - 1]?.byType?.[t]) }}
                   <span
-                    v-if="payload.wow?.byType?.[t] != null"
+                    v-if="activeComparison?.byType?.[t] != null"
                     class="ml-2 opacity-80"
-                    :class="payload.wow.byType[t]! >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'"
+                    :class="activeComparison.byType[t]! >= 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'"
                   >
-                    ({{ fmtPct(payload.wow.byType[t]) }})
+                    ({{ fmtPct(activeComparison.byType[t]) }})
                   </span>
                 </span>
               </div>
