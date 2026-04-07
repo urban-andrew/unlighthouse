@@ -3,6 +3,7 @@ import UDropdownMenu from '@nuxt/ui/components/DropdownMenu.vue'
 import { useTitle } from '@vueuse/core'
 import { $fetch } from 'ofetch'
 import { EXCLUDED_CATEGORIES } from './constants'
+import { normalizeCruxHistoryPayload } from './logic/cruxChart'
 import {
   activeScreenshots,
   activeTab,
@@ -76,12 +77,12 @@ if (!isStatic) {
     ]).then((results) => {
       const [phone, desktop] = results
       if (phone.status === 'fulfilled')
-        cruxMobile.value = phone.value
+        cruxMobile.value = normalizeCruxHistoryPayload(phone.value as Record<string, unknown>)
       else
         console.warn('Failed to fetch CrUX mobile data:', phone.reason)
 
       if (desktop.status === 'fulfilled')
-        cruxDesktop.value = desktop.value
+        cruxDesktop.value = normalizeCruxHistoryPayload(desktop.value as Record<string, unknown>)
       else
         console.warn('Failed to fetch CrUX desktop data:', desktop.reason)
 
