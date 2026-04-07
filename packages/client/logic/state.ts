@@ -75,7 +75,7 @@ export const resultColumns = computed(() => {
       label: '',
       slot: 'select',
       cols: 1,
-      classes: ['justify-center', 'self-start', 'pt-1'],
+      classes: ['justify-center', 'self-start', 'pt-1', 'min-h-[100px]', 'items-center'],
     },
     {
       label: 'Page',
