@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const screenshots = computed(() => {
   void dualViewTick.value
+  void viewFormFactor.value
   const raw = props.value?.details?.items
   if (!raw)
     return [] as { data: string }[]
@@ -28,9 +29,16 @@ function openModal() {
 </script>
 
 <template>
-  <btn-action v-if="screenshots.length > 0" title="Open page load timeline" class="w-full" @click="openModal">
-    <div class="w-full flex justify-between">
-      <img v-for="(image, key) in screenshots" :key="`${viewFormFactor}-${String(key)}`" loading="lazy" :src="image.data" height="120" class="max-w-[10%] max-h-[120px] h-auto w-[10%]" alt="">
+  <btn-action v-if="screenshots.length > 0" title="Open page load timeline" class="w-full py-0.5" @click="openModal">
+    <div class="w-full flex justify-between gap-0.5 items-center min-h-0">
+      <img
+        v-for="(image, key) in screenshots"
+        :key="`${viewFormFactor}-${String(key)}`"
+        loading="lazy"
+        :src="image.data"
+        class="max-h-[56px] w-[10%] min-w-0 h-auto object-contain shrink"
+        alt=""
+      >
     </div>
   </btn-action>
 </template>

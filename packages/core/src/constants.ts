@@ -12,7 +12,7 @@ export const DefaultColumns: Record<UnlighthouseTabs, UnlighthouseColumn[]> = {
     {
       label: 'Screenshot Timeline',
       key: 'report.audits.screenshot-thumbnails',
-      cols: 6,
+      cols: 3,
     },
   ],
   'performance': [

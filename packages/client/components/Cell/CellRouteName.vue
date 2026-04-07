@@ -36,22 +36,22 @@ const fetchTime = computed(() => {
 })
 
 const thumbnail = computed(() => {
-  const mobileProps = device === 'mobile' ? { class: 'w-[68px] h-[112px]' } : { class: 'h-[82px] w-[112px]' }
+  const box = device === 'mobile' ? 'w-[68px] h-[112px]' : 'h-[82px] w-[112px]'
+  const imgClass = `${box} object-contain object-left max-w-none`
 
-  // Check if report exists before trying to resolve artifact paths
   if (!props.report) {
-    return { ...mobileProps, src: '' }
+    return { class: imgClass, src: '' }
   }
 
   if (categories.includes('performance')) {
     return {
       src: resolveArtifactPath(props.report, '/screenshot.jpeg'),
-      ...mobileProps,
+      class: imgClass,
     }
   }
   return {
     src: resolveArtifactPath(props.report, '/full-screenshot.jpeg'),
-    ...mobileProps,
+    class: imgClass,
   }
 })
 </script>
@@ -61,7 +61,7 @@ const thumbnail = computed(() => {
     <modal-trigger v-if="report.tasks.runLighthouseTask === 'completed'">
       <template #trigger>
         <btn-action class="hidden md:block" :style="{ flex: `0 0 ${device === 'mobile' ? '67' : '112'}px` }" title="Open Full Page Screenshot">
-          <img v-bind="thumbnail" loading="lazy" height="82" width="112">
+          <img v-bind="thumbnail" loading="lazy" alt="">
         </btn-action>
       </template>
       <template #modal>

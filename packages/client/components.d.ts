@@ -44,6 +44,7 @@ declare module 'vue' {
     CruxGraphLcp: typeof import('./components/Crux/Graph/CruxGraphLcp.vue')['default']
     DisclosureHandle: typeof import('./components/Disclosure/DisclosureHandle.vue')['default']
     ErrorChip: typeof import('./components/Chip/ErrorChip.vue')['default']
+    HistoricalDashboard: typeof import('./components/Historical/HistoricalDashboard.vue')['default']
     InfoChip: typeof import('./components/Chip/InfoChip.vue')['default']
     LighthouseThreeD: typeof import('./components/LighthouseThreeD.vue')['default']
     LoadingSpinner: typeof import('./components/Loading/LoadingSpinner.vue')['default']

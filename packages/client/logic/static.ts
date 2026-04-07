@@ -19,6 +19,7 @@ const MdiThumbUp = 'i-mdi-thumb-up'
 const MdiViewDashboard = 'i-mdi-view-dashboard'
 const MdiWeb = 'i-mdi-web'
 const MdiWorld = 'i-mdi-world'
+const MdiChartLine = 'i-mdi-chart-line'
 
 const {
   options: {
@@ -30,6 +31,7 @@ const {
     websocketUrl: wsUrl,
     apiUrl,
     lighthouseOptions,
+    localHistory: localHistoryOpt = { enabled: false },
     scanner: {
       dynamicSampling,
       throttle,
@@ -39,6 +41,8 @@ const {
     routerPrefix: basePath,
   },
 } = window.__unlighthouse_payload
+
+export const localHistoryEnabled = !!(localHistoryOpt && typeof localHistoryOpt === 'object' && localHistoryOpt.enabled)
 
 export const isStatic = window.__unlighthouse_static
 
@@ -56,6 +60,7 @@ export const tabs = [
     return startCase(c)
   }),
   categories.includes('performance') ? 'CrUX' : undefined,
+  localHistoryEnabled ? 'Historical' : undefined,
 ].filter(Boolean).map((tab) => {
   // map icons to tabs
   switch (tab) {
@@ -79,6 +84,9 @@ export const tabs = [
       break
     case 'CrUX':
       tab = { label: tab, icon: MdiWorld }
+      break
+    case 'Historical':
+      tab = { label: tab, icon: MdiChartLine }
       break
   }
   return tab

@@ -2,6 +2,7 @@ import type { ResolvedUserConfig, RuntimeSettings, UnlighthouseRouteReport } fro
 import fs from 'fs-extra'
 import { join } from 'pathe'
 import { useLogger } from '../logger'
+import { classifyPagePath } from './pageType'
 import { writeLocalHistoryDashboard } from './localHistoryDashboard'
 
 /**
@@ -33,6 +34,7 @@ export async function persistLocalRunHistory(
       }
       return {
         path: r.route.path,
+        pageType: classifyPagePath(r.route.path),
         score: r.report!.score,
         categories,
       }

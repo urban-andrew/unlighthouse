@@ -4,6 +4,7 @@ import fs from 'fs-extra'
 import { createRouter, defineEventHandler, getQuery, getRouterParams, readBody, sendRedirect, serveStatic, setResponseHeader, setResponseStatus, useBase } from 'h3'
 import launch from 'launch-editor'
 import { createScanMeta } from '../data'
+import { readLocalHistorySummary } from '../history/readLocalHistorySummary'
 import { useLogger } from '../logger'
 import { useUnlighthouse } from '../unlighthouse'
 
@@ -81,6 +82,13 @@ export async function createApi(app: App): Promise<Router> {
   }))
 
   apiRouter.get('/scan-meta', defineEventHandler(() => createScanMeta()))
+
+  apiRouter.get('/local-history', defineEventHandler(async () => {
+    const summary = await readLocalHistorySummary(resolvedConfig, runtimeSettings)
+    if (!summary)
+      return { enabled: false as const, runs: [], wow: null }
+    return summary
+  }))
 
   // Mount API router
   router.use('/api/**', useBase('/api', apiRouter.handler))

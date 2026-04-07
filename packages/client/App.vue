@@ -14,6 +14,7 @@ import {
   contentModalOpen,
   device,
   dualDevice,
+  dualViewTick,
   dynamicSampling,
   iframeModalUrl,
   incrementSort,
@@ -330,6 +331,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
               </div>
             </div>
           </div>
+          <div v-else-if="filteredTabs[activeTab]?.label === 'Historical'">
+            <HistoricalDashboard />
+          </div>
           <template v-else-if="!shouldShowWaitingState">
             <div class="pr-10 pb-1 w-full min-w-[1500px]">
               <div class="grid grid-cols-12 gap-4 text-sm dark:text-gray-300 text-gray-700">
@@ -398,7 +402,7 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
               <results-route
                 v-for="(report, routeName) in paginatedResults"
                 :key="routeName"
-                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask, isRouteSelected(report.route.id)]"
+                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask, isRouteSelected(report.route.id), dualViewTick]"
                 :report="report"
               >
                 <template #select="{ report: r }">
@@ -413,10 +417,10 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     <btn-action
                       class="text-[10px] px-1 py-0.5 rounded"
                       :disabled="isOffline || isStatic ? 'disabled' : false"
-                      title="Select all routes in this group (same route definition)"
+                      title="Select all routes that share the same route definition as this row"
                       @click="selectSameGroupAs(r)"
                     >
-                      Group
+                      Select
                     </btn-action>
                   </div>
                 </template>

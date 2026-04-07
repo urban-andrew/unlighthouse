@@ -76,7 +76,7 @@ async function onRescanSelected() {
             :disabled="isStatic || isOffline ? 'disabled' : false"
             @click="selectAllFiltered()"
           >
-            All
+            Select All
           </btn-action>
           <btn-action
             class="px-1 py-0.5 rounded"
@@ -87,7 +87,7 @@ async function onRescanSelected() {
           </btn-action>
         </div>
         <btn-action
-          class="text-[10px] px-1.5 py-1 rounded whitespace-nowrap"
+          class="text-sm font-medium px-3 py-2 rounded-md whitespace-nowrap min-w-[7.5rem]"
           :disabled="isStatic || isOffline || selectedCount === 0 || selectionBusy ? 'disabled' : false"
           :title="`Rescan ${selectedCount} selected`"
           @click="onRescanSelected()"

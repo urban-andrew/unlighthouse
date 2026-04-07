@@ -76,7 +76,7 @@ const favIcon = computed(() => {
         </div>
       </div>
       <div v-if="scanMeta?.monitor?.allTargets > 0" class="flex grow justify-around md:mr-5 items-center">
-        <search-box class="grow mr-3 md:mr-5" />
+        <search-box class="w-full max-w-[9.5rem] sm:max-w-[11rem] md:max-w-[13rem] shrink-0 mr-3 md:mr-5" />
         <UDropdownMenu
           :items="[[{
             label: 'Rescan Site',

@@ -1,5 +1,5 @@
 // Performance constants to avoid recalculation
-export const EXCLUDED_CATEGORIES = ['Overview', 'CrUX'] as const
+export const EXCLUDED_CATEGORIES = ['Overview', 'CrUX', 'Historical'] as const
 
 export const GAUGE_CONSTANTS = {
   RADIUS: 56,

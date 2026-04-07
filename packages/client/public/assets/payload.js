@@ -6,13 +6,14 @@ window.__unlighthouse_payload = {
     websocketUrl: 'ws://localhost:3000/api/ws',
     router: { prefix: '' },
     api: { prefix: '/api' },
+    localHistory: { enabled: true },
     client: {
       groupRoutesKey: 'route.definition.name',
       columns: {
         'overview': [{
           label: 'Screenshot Timeline',
           key: 'report.audits.screenshot-thumbnails',
-          cols: 6,
+          cols: 3,
         }],
         'performance': [{
           cols: 1,

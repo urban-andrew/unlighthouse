@@ -48,23 +48,28 @@ export async function generateClient(options: GenerateClientOptions = {}, unligh
     .replace(/(href|src)="\/assets\/(.*?)"/g, `$1="${prefix}assets/$2"`)
   await fs.writeFile(resolve(runtimeSettings.generatedClientPath, 'index.html'), indexHTML, 'utf-8')
 
-  const staticData: { options: ClientOptionsPayload, scanMeta: ScanMeta, reports: UnlighthouseRouteReport[] } = {
+  const staticData: { options: ClientOptionsPayload & { localHistory?: { enabled: boolean } }, scanMeta: ScanMeta, reports: UnlighthouseRouteReport[] } = {
     reports: [],
     scanMeta: createScanMeta(),
     // need to be selective about what options we put here to avoid exposing anything sensitive
-    options: pick({
-      ...runtimeSettings,
-      ...resolvedConfig,
-    }, [
-      'client',
-      'site',
-      'websocketUrl',
-      'lighthouseOptions',
-      'scanner',
-      'routerPrefix',
-      'websocketUrl',
-      'apiUrl',
-    ]),
+    options: {
+      ...pick({
+        ...runtimeSettings,
+        ...resolvedConfig,
+      }, [
+        'client',
+        'site',
+        'websocketUrl',
+        'lighthouseOptions',
+        'scanner',
+        'routerPrefix',
+        'websocketUrl',
+        'apiUrl',
+      ]),
+      localHistory: resolvedConfig.localHistory && typeof resolvedConfig.localHistory === 'object'
+        ? { enabled: !!resolvedConfig.localHistory.enabled }
+        : { enabled: false },
+    },
   }
   // avoid exposing sensitive cookie / header options
   staticData.options.lighthouseOptions = { onlyCategories: resolvedConfig.lighthouseOptions.onlyCategories }
