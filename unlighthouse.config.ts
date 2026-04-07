@@ -1,8 +1,9 @@
 import { defineConfig } from '@unlighthouse/core'
 
 export default defineConfig({
-  // Set your origin here, or pass `--site https://…` when running the CLI.
-  // site: 'https://example.com',
+  // Required for route discovery and same-origin filtering (must match URLs from sitemap/crawl).
+  // If omitted, origin may be inferred from the first absolute `scanner.sitemap` URL.
+  site: 'https://urbanstems.com',
   client: {
     faviconUrl: 'https://urbanstems.com/cdn/shop/files/favicon.png',
   },
@@ -12,7 +13,7 @@ export default defineConfig({
     dualDevice: true, // run Lighthouse for mobile and desktop; use the nav bar to switch views
     // Full URLs: XML sitemap, or HTML pages like https://urbanstems.com/pages/sitemap (links are extracted).
     // Raise maxRoutes if the sitemap lists more than the default cap.
-    sitemap: ['https://urbanstems.com/pages/sitemap'],
+    sitemap: ['https://urbanstems.com/sitemap'],
     maxRoutes: 500,
     samples: 1,
     dynamicSampling: false,

@@ -39,6 +39,21 @@ export const resolveUserConfig: (userConfig: UserConfig) => Promise<ResolvedUser
   if (!config.site && Array.isArray(config.urls) && config.urls?.[0])
     config.site = config.urls[0]
 
+  // If `site` is still unset, derive origin from an absolute URL in `scanner.sitemap` so
+  // sitemap URLs are not all dropped by `isScanOrigin()` (hostname must match `runtimeSettings.siteUrl`).
+  if (!config.site && Array.isArray(config.scanner?.sitemap) && config.scanner.sitemap.length > 0) {
+    const first = config.scanner.sitemap[0]
+    if (typeof first === 'string' && (first.startsWith('http://') || first.startsWith('https://'))) {
+      try {
+        config.site = new URL(first).origin
+        logger.info(`Inferred \`site\` as \`${config.site}\` from the first URL in \`scanner.sitemap\`. Set \`site\` explicitly if this is wrong.`)
+      }
+      catch {
+        // ignore invalid URL
+      }
+    }
+  }
+
   // it's possible we don't know the site at runtime
   if (config.site) {
     // normalise site
