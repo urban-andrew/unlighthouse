@@ -24,14 +24,16 @@ const { pause, resume } = useIntervalFn(() => {
     currentFrame.value++
   }
   else {
-    // Loop back to beginning
-    currentFrame.value = 0
+    pause()
+    isPlaying.value = false
   }
 }, 150, { immediate: false })
 
 function play() {
   if (isPlaying.value)
     return
+  if (totalFrames.value > 0 && currentFrame.value >= totalFrames.value - 1)
+    currentFrame.value = 0
   isPlaying.value = true
   resume()
 }

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { UnlighthouseColumn, UnlighthouseRouteReport } from '@unlighthouse/core'
-import { apiUrl, categories, device, isOffline, resolveArtifactPath } from '../../logic'
+import { apiUrl, categories, device, dualViewTick, isOffline, resolveArtifactPath } from '../../logic'
 
 const props = defineProps<{
   report: UnlighthouseRouteReport
@@ -35,6 +35,15 @@ const fetchTime = computed(() => {
   }).format(date)
 })
 
+const useViewportForModal = ref(false)
+
+watch(
+  () => [props.report?.route?.id, dualViewTick.value] as const,
+  () => {
+    useViewportForModal.value = false
+  },
+)
+
 const thumbnail = computed(() => {
   const box = device === 'mobile' ? 'w-[68px] h-[112px]' : 'h-[82px] w-[112px]'
   const imgClass = `${box} object-contain object-left max-w-none`
@@ -54,6 +63,19 @@ const thumbnail = computed(() => {
     class: imgClass,
   }
 })
+
+const modalScreenshotSrc = computed(() => {
+  void dualViewTick.value
+  void useViewportForModal.value
+  if (useViewportForModal.value)
+    return resolveArtifactPath(props.report, '/screenshot.jpeg')
+  return resolveArtifactPath(props.report, '/full-screenshot.jpeg')
+})
+
+function onModalScreenshotError() {
+  if (!useViewportForModal.value)
+    useViewportForModal.value = true
+}
 </script>
 
 <template>
@@ -65,7 +87,12 @@ const thumbnail = computed(() => {
         </btn-action>
       </template>
       <template #modal>
-        <img :src="resolveArtifactPath(props.report, '/full-screenshot.jpeg')" alt="full screenshot" class="mx-auto">
+        <img
+          :src="modalScreenshotSrc"
+          alt="Page screenshot"
+          class="mx-auto max-w-full"
+          @error="onModalScreenshotError"
+        >
       </template>
     </modal-trigger>
 

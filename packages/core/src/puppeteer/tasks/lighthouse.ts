@@ -107,7 +107,7 @@ async function persistLighthouseBinaryArtifacts(artifactPath: string, report: Re
     // @ts-expect-error untyped
     await fs.writeFile(join(artifactPath, ReportArtifacts.screenshot), base64ToBuffer(report.audits['final-screenshot'].details.data))
 
-  if (report.fullPageScreenshot?.screenshot.data)
+  if (report.fullPageScreenshot?.screenshot?.data)
     await fs.writeFile(join(artifactPath, ReportArtifacts.fullScreenScreenshot), base64ToBuffer(report.fullPageScreenshot.screenshot.data))
 
   const screenshotThumbnails = report.audits?.['screenshot-thumbnails']?.details

@@ -72,6 +72,10 @@ onMounted(() => {
       height: img.naturalHeight,
     }
   }
+  img.onerror = () => {
+    img.onerror = null
+    img.src = resolveArtifactPath(props.report, '/screenshot.jpeg')
+  }
   img.src = resolveArtifactPath(props.report, '/full-screenshot.jpeg')
 })
 

@@ -47,8 +47,14 @@ import {
   wsConnect,
 } from './logic'
 
-const crux = ref(null)
+const cruxMobile = ref(null)
+const cruxDesktop = ref(null)
+const cruxLoading = ref(false)
 const cruxError = ref(false)
+/** Which CrUX form-factor series is shown (matches Chrome UX Report History API). */
+const cruxFormFactor = ref<'mobile' | 'desktop'>(device === 'desktop' ? 'desktop' : 'mobile')
+
+const activeCrux = computed(() => (cruxFormFactor.value === 'desktop' ? cruxDesktop.value : cruxMobile.value))
 
 if (!isStatic) {
   let refreshInterval: NodeJS.Timeout | null = null
@@ -62,15 +68,27 @@ if (!isStatic) {
       refreshScanMeta()
     }, 5000)
 
-    $fetch(`https://crux.unlighthouse.dev/api/${encodeURIComponent(website)}/crux/history`)
-      .then((res) => {
-        crux.value = res
-        cruxError.value = false
-      })
-      .catch((error) => {
-        console.warn('Failed to fetch CrUX data:', error)
-        cruxError.value = true
-      })
+    cruxLoading.value = true
+    const base = `https://crux.unlighthouse.dev/api/${encodeURIComponent(website)}/crux/history`
+    Promise.allSettled([
+      $fetch(`${base}?formFactor=PHONE`),
+      $fetch(`${base}?formFactor=DESKTOP`),
+    ]).then((results) => {
+      const [phone, desktop] = results
+      if (phone.status === 'fulfilled')
+        cruxMobile.value = phone.value
+      else
+        console.warn('Failed to fetch CrUX mobile data:', phone.reason)
+
+      if (desktop.status === 'fulfilled')
+        cruxDesktop.value = desktop.value
+      else
+        console.warn('Failed to fetch CrUX desktop data:', desktop.reason)
+
+      cruxError.value = phone.status === 'rejected' && desktop.status === 'rejected'
+    }).finally(() => {
+      cruxLoading.value = false
+    })
   })
 
   onUnmounted(() => {
@@ -91,7 +109,15 @@ const shouldShowCategoryScore = computed(() => (category, key) => {
 })
 
 const shouldShowCruxTab = computed(() => {
-  return crux.value && !cruxError.value && crux.value.exists !== false
+  if (isStatic)
+    return false
+  if (cruxLoading.value)
+    return true
+  if (cruxError.value)
+    return true
+  const m = cruxMobile.value
+  const d = cruxDesktop.value
+  return Boolean((m && m.exists !== false) || (d && d.exists !== false))
 })
 
 const filteredTabs = computed(() => {
@@ -224,15 +250,36 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
         </div>
         <div class="xl:w-full px-3 mr-5">
           <div v-if="filteredTabs[activeTab]?.label === 'CrUX'">
-            <div>
-              <h2 class="font-bold text-2xl mb-3">
-                Origin CrUX History - Mobile
-              </h2>
-              <p class="text-sm opacity-80 mb-7 max-w-3xl">
-                Field <abbr title="75th percentile">p75</abbr> time series from the Chrome UX Report History API. The official Core Web Vitals are LCP, INP, and CLS; FCP, TTFB, and FID add context (FID is legacy—prefer INP).
-              </p>
+            <div class="flex flex-col gap-4 mb-6">
+              <div>
+                <h2 class="font-bold text-2xl mb-2">
+                  Origin CrUX History — {{ cruxFormFactor === 'desktop' ? 'Desktop' : 'Mobile' }}
+                </h2>
+                <p class="text-sm opacity-80 max-w-3xl">
+                  Field <abbr title="75th percentile">p75</abbr> time series from the Chrome UX Report History API. The official Core Web Vitals are LCP, INP, and CLS; FCP, TTFB, and FID add context (FID is legacy—prefer INP).
+                </p>
+              </div>
+              <div v-if="!cruxLoading && !cruxError" class="flex flex-wrap items-center gap-2">
+                <span class="text-xs uppercase opacity-60">Form factor</span>
+                <UButton
+                  size="xs"
+                  :color="cruxFormFactor === 'mobile' ? 'primary' : 'neutral'"
+                  :variant="cruxFormFactor === 'mobile' ? 'solid' : 'outline'"
+                  @click="cruxFormFactor = 'mobile'"
+                >
+                  Mobile
+                </UButton>
+                <UButton
+                  size="xs"
+                  :color="cruxFormFactor === 'desktop' ? 'primary' : 'neutral'"
+                  :variant="cruxFormFactor === 'desktop' ? 'solid' : 'outline'"
+                  @click="cruxFormFactor = 'desktop'"
+                >
+                  Desktop
+                </UButton>
+              </div>
             </div>
-            <div v-if="!crux && !cruxError" class="w-full">
+            <div v-if="cruxLoading && !cruxError" class="w-full">
               <div class="text-gray-500 text-center w-full text-sm">
                 Loading CrUX data...
               </div>
@@ -245,14 +292,19 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     Failed to Load CrUX Data
                   </p>
                   <p class="text-sm text-red-700 dark:text-red-300 mt-1">
-                    Unlighthouse CrUX API is currently unavailable.
+                    Unlighthouse CrUX API is currently unavailable for both mobile and desktop.
                   </p>
                 </div>
               </div>
             </div>
-            <div v-else-if="crux?.exists === false" class="w-full">
-              <div class="text-gray-500 text-center inline text-sm">
-                No data from Chrome UX report
+            <div v-else-if="!activeCrux || activeCrux.exists === false" class="w-full">
+              <div class="text-gray-500 text-sm max-w-2xl">
+                <template v-if="!activeCrux">
+                  Could not load CrUX for <strong>{{ cruxFormFactor === 'desktop' ? 'desktop' : 'mobile' }}</strong>. The request may have failed or the public API did not return this series.
+                </template>
+                <template v-else>
+                  No Chrome UX Report field data for <strong>{{ cruxFormFactor === 'desktop' ? 'desktop' : 'mobile' }}</strong> for this origin. Try the other form factor, or confirm the site has enough CrUX traffic.
+                </template>
               </div>
             </div>
             <div v-else class="w-full flex-col flex space-y-8">
@@ -265,9 +317,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     <div>
                       <a href="https://web.dev/articles/lcp" target="_blank" class="transition hover:underline">Largest Contentful Paint (LCP)</a>
                     </div>
-                    <div v-if="crux?.lcp" class="flex items-center">
+                    <div v-if="activeCrux?.lcp" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphLcp v-if="crux?.lcp" :value="crux.lcp" :height="200" />
+                        <CruxGraphLcp v-if="activeCrux?.lcp" :value="activeCrux.lcp" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
@@ -291,9 +343,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     <div>
                       <a href="https://web.dev/articles/inp" target="_blank" class="transition hover:underline">Interaction to Next Paint (INP)</a>
                     </div>
-                    <div v-if="crux?.inp" class="flex items-center">
+                    <div v-if="activeCrux?.inp" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphInp v-if="crux?.inp" :value="crux.inp" :height="200" />
+                        <CruxGraphInp v-if="activeCrux?.inp" :value="activeCrux.inp" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
@@ -315,9 +367,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                   </div>
                   <div>
                     <div><a href="https://web.dev/articles/cls" target="_blank" class="transition hover:underline">Cumulative Layout Shift (CLS)</a></div>
-                    <div v-if="crux?.cls" class="flex items-center">
+                    <div v-if="activeCrux?.cls" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphCls v-if="crux?.cls" :value="crux.cls" :height="200" />
+                        <CruxGraphCls v-if="activeCrux?.cls" :value="activeCrux.cls" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
@@ -348,9 +400,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     <div>
                       <a href="https://web.dev/articles/fcp" target="_blank" class="transition hover:underline">First Contentful Paint (FCP)</a>
                     </div>
-                    <div v-if="crux?.fcp" class="flex items-center">
+                    <div v-if="activeCrux?.fcp" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphFcp v-if="crux?.fcp" :value="crux.fcp" :height="200" />
+                        <CruxGraphFcp v-if="activeCrux?.fcp" :value="activeCrux.fcp" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
@@ -374,9 +426,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     <div>
                       <a href="https://web.dev/ttfb/" target="_blank" class="transition hover:underline">Time to First Byte (TTFB)</a>
                     </div>
-                    <div v-if="crux?.ttfb" class="flex items-center">
+                    <div v-if="activeCrux?.ttfb" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphTtfb v-if="crux?.ttfb" :value="crux.ttfb" :height="200" />
+                        <CruxGraphTtfb v-if="activeCrux?.ttfb" :value="activeCrux.ttfb" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
@@ -401,9 +453,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                       <a href="https://web.dev/fid/" target="_blank" class="transition hover:underline">First Input Delay (FID)</a>
                       <span class="text-xs opacity-70 ml-1">(legacy)</span>
                     </div>
-                    <div v-if="crux?.fid" class="flex items-center">
+                    <div v-if="activeCrux?.fid" class="flex items-center">
                       <div class="w-full h-[200px] w-[400px] relative">
-                        <CruxGraphFid v-if="crux?.fid" :value="crux.fid" :height="200" />
+                        <CruxGraphFid v-if="activeCrux?.fid" :value="activeCrux.fid" :height="200" />
                       </div>
                       <div>
                         <div class="text-green-500 font-bold">
