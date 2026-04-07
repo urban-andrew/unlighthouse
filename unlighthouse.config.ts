@@ -16,6 +16,7 @@ export default defineConfig({
     sitemap: ['https://urbanstems.com/sitemap'],
     maxRoutes: 500,
     samples: 1,
+    robotsTxt: false,
     dynamicSampling: false,
     // Add path patterns (strings or RegExp) to skip noisy or dead URLs from the crawl.
     // Example: /^\/products\/old-handle/ or '/collections/sale-archive'
