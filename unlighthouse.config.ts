@@ -13,7 +13,7 @@ export default defineConfig({
     // Full URLs: XML sitemap, or HTML pages like https://urbanstems.com/pages/sitemap (links are extracted).
     // Raise maxRoutes if the sitemap lists more than the default cap.
     //sitemap: ['https://urbanstems.com/pages/sitemap'],
-    maxRoutes: 300,
+    maxRoutes: 500,
     samples: 1,
     dynamicSampling: false,
     // Add path patterns (strings or RegExp) to skip noisy or dead URLs from the crawl.
