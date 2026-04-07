@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "unlighthouse": "workspace:*",
     "@antfu/eslint-config": "catalog:",
     "@arethetypeswrong/cli": "catalog:",
     "bumpp": "catalog:",
