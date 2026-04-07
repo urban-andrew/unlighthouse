@@ -246,6 +246,11 @@ export interface ClientOptions {
    * Which key to use to group the routes.
    */
   groupRoutesKey: string
+  /**
+   * Optional absolute URL for the favicon in the client nav bar.
+   * When set, overrides the favicon discovered from crawled pages.
+   */
+  faviconUrl?: string
 }
 
 export interface GenerateClientOptions {

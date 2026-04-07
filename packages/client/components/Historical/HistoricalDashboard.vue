@@ -33,6 +33,9 @@ const TYPE_ORDER = [
   'checkout',
   'search',
   'blog',
+  'account',
+  'rewards',
+  'subscriptions',
   'other',
 ] as const
 
@@ -45,6 +48,9 @@ const TYPE_LABELS: Record<(typeof TYPE_ORDER)[number], string> = {
   checkout: 'Checkout',
   search: 'Search results',
   blog: 'Blog',
+  account: 'Account',
+  rewards: 'Rewards',
+  subscriptions: 'Subscriptions',
   other: 'Other',
 }
 

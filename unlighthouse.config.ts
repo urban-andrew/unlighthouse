@@ -3,6 +3,9 @@ import { defineConfig } from '@unlighthouse/core'
 export default defineConfig({
   // Set your origin here, or pass `--site https://…` when running the CLI.
   // site: 'https://example.com',
+  client: {
+    faviconUrl: 'https://urbanstems.com/cdn/shop/files/favicon.png',
+  },
   scanner: {
     suppressKlaviyo: true,
     dualDevice: true, // run Lighthouse for mobile and desktop; use the nav bar to switch views
