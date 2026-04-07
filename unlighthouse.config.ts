@@ -1,6 +1,6 @@
-import { defineConfig } from '@unlighthouse/core'
+import { defineUnlighthouseConfig } from 'unlighthouse/config'
 
-export default defineConfig({
+export default defineUnlighthouseConfig({
   // Required for route discovery and same-origin filtering (must match URLs from sitemap/crawl).
   // If omitted, origin may be inferred from the first absolute `scanner.sitemap` URL.
   site: 'https://urbanstems.com',

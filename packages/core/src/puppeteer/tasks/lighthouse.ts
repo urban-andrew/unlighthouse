@@ -174,12 +174,13 @@ async function executeLighthouseRun(
     }
   }
 
-  let report: Result | undefined = samples[0]
-
-  if (!report) {
+  const firstSample = samples[0]
+  if (!firstSample) {
     logger.error(`Task \`runLighthouseTask\` has failed to run for path "${routeReport.route.path}".`)
     return 'failed'
   }
+
+  let report: Result = firstSample
 
   if (report.categories.performance && !report.categories.performance.score) {
     logger.warn(`Lighthouse failed to run performance audits for "${routeReport.route.path}", adding back to queue${report.runtimeError ? `: ${report.runtimeError.message}` : '.'}`)
@@ -188,7 +189,7 @@ async function executeLighthouseRun(
 
   if (samples.length > 1) {
     try {
-      report = computeMedianRun(samples)
+      report = computeMedianRun(samples) ?? report
     }
     catch (e) {
       logger.warn('Error when computing median score, possibly audit failed.', e)

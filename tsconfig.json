@@ -15,6 +15,7 @@
     "moduleResolution": "Bundler",
     "paths": {
       "unlighthouse": ["./packages/unlighthouse/src"],
+      "unlighthouse/config": ["./packages/unlighthouse/config.d.mts"],
       "@unlighthouse/client": ["./packages/client/src"],
       "@unlighthouse/cli": ["./packages/cli/src"],
       "@unlighthouse/core": ["./packages/core/src"],
