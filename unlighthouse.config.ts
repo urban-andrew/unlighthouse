@@ -15,7 +15,8 @@ export default defineUnlighthouseConfig({
     sitemap: "https://urbanstems.com/sitemap.xml",
     robotsTxt: true,
     crawler: true, // used if sitemap is missing or empty; otherwise core may turn this off when sitemap is large
-    maxRoutes: false, // no cap — queue every discovered route (watch runtime and origin rate limits)
+    // No practical cap for large catalogs. Use `false` instead on Unlighthouse ≥0.17 if your types/runtime allow it.
+    maxRoutes: 1000,
     samples: 1,
     dynamicSampling: false, // do not sample within route groups; scan every queued URL
     // Add path patterns (strings or RegExp) to skip noisy or dead URLs.
