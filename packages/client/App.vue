@@ -160,10 +160,10 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
 
 <template>
   <UApp>
-    <div class="text-gray-700 dark:text-gray-200 overflow-y-hidden max-h-screen h-screen grid grid-rows-[min-content_1fr]">
+    <div class="text-gray-700 dark:text-gray-200 overflow-y-hidden max-h-screen h-screen grid min-h-0 grid-rows-[min-content_1fr]">
       <NavBar />
-      <main class="xl:flex mt-2 mb-2">
-        <div class="flex justify-between max-h-[95%] flex-col xl:ml-3 mx-3 mr-0 w-full xl:mr-5 xl:w-[250px] xl:mb-0">
+      <main class="xl:flex mt-2 mb-2 min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div class="flex min-h-0 max-h-[95%] flex-shrink-0 flex-col justify-between xl:ml-3 mx-3 mr-0 w-full xl:mr-5 xl:w-[250px] xl:mb-0">
           <div>
             <TabGroup vertical @change="changedTab">
               <TabList class="xl:block xl:space-x-0 flex space-x-2 mb-3">
@@ -236,7 +236,7 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
             </div>
           </div>
         </div>
-        <div class="xl:w-full px-3 mr-5">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 xl:w-full mr-5">
           <div v-if="filteredTabs[activeTab]?.label === 'CrUX'">
             <div class="flex flex-col gap-4 mb-6">
               <div>
@@ -472,19 +472,32 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
             <HistoricalDashboard />
           </div>
           <template v-else-if="!shouldShowWaitingState">
-            <div class="pr-10 pb-1 w-full min-w-[1500px]">
-              <div class="grid grid-cols-12 gap-4 text-sm dark:text-gray-300 text-gray-700">
-                <results-table-head
-                  v-for="(column, key) in resultColumns"
-                  :key="key"
-                  :sorting="sorting"
-                  :column="column"
-                  @sort="incrementSort"
-                />
+            <div
+              class="flex w-full min-w-[1500px] min-h-0 flex-1 flex-col pr-3 xl:max-h-[calc(100vh-100px)] lg:max-h-[calc(100vh-205px)] sm:max-h-[calc(100vh-220px)] max-h-[calc(100vh-250px)]"
+            >
+              <div class="pr-10 pb-1 shrink-0">
+                <div class="grid grid-cols-12 gap-4 text-sm dark:text-gray-300 text-gray-700">
+                  <results-table-head
+                    v-for="(column, key) in resultColumns"
+                    :key="key"
+                    :sorting="sorting"
+                    :column="column"
+                    @sort="incrementSort"
+                  />
+                </div>
               </div>
-            </div>
-            <div class="w-full min-w-[1500px] pr-3 flex flex-col min-h-0 xl:max-h-[calc(100vh-100px)] lg:max-h-[calc(100vh-205px)] sm:max-h-[calc(100vh-220px)] max-h-[calc(100vh-250px)]">
-              <div class="flex-1 min-h-0 overflow-y-auto">
+              <div
+                v-if="searchResults.length > perPage"
+                class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-y border-gray-200 bg-gray-50/90 py-2 dark:border-gray-600 dark:bg-gray-900/60"
+              >
+                <Pagination v-model="page" :page-count="perPage" :total="searchResults.length" />
+                <div class="text-sm opacity-80">
+                  Page {{ page }} of {{ Math.max(1, Math.ceil(searchResults.length / perPage)) }}
+                  <span class="opacity-60"> · </span>
+                  {{ searchResults.length }} routes
+                </div>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto">
               <div v-if="Object.values(searchResults).length === 0" class="px-4 py-3">
                 <template v-if="searchText">
                   <p class="mb-2">
@@ -573,15 +586,6 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                   </UDropdownMenu>
                 </template>
               </results-route>
-              </div>
-              <div
-                v-if="searchResults.length > perPage"
-                class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 mt-2 pt-3 pb-1 border-t border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/50"
-              >
-                <Pagination v-model="page" :page-count="perPage" :total="searchResults.length" />
-                <div class="opacity-70 text-sm">
-                  {{ searchResults.length }} total
-                </div>
               </div>
             </div>
           </template>

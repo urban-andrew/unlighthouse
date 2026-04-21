@@ -244,8 +244,9 @@ export async function wsConnect() {
     ws.onmessage = (message) => {
       try {
         const { response } = JSON.parse(message.data)
-        if (response?.route?.path) {
-          wsReports.set(response.route.path, response)
+        const reportKey = response?.route?.id || response?.route?.path
+        if (reportKey) {
+          wsReports.set(reportKey, response)
           applyReportViewForFormFactor(response)
         }
       }
@@ -264,8 +265,9 @@ export async function wsConnect() {
       const reports = await useFetch('/reports').get().json<UnlighthouseRouteReport[]>()
       if (reports.data.value && Array.isArray(reports.data.value)) {
         reports.data.value.forEach((report) => {
-          if (report?.route?.path) {
-            wsReports.set(report.route.path, report)
+          const key = report?.route?.id || report?.route?.path
+          if (key) {
+            wsReports.set(key, report)
             applyReportViewForFormFactor(report)
           }
         })
