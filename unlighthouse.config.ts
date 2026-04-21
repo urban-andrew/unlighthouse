@@ -12,7 +12,7 @@ export default defineUnlighthouseConfig({
     dualDevice: true, // Lighthouse for mobile and desktop; switch views in the nav bar
     // Full URL list: default `${site}/sitemap.xml` plus any `Sitemap:` entries from robots.txt.
     // With 50+ sitemap URLs (non-localhost), the HTML crawler auto-disables and only sitemap URLs are queued.
-    sitemap: true,
+    sitemap: "https://urbanstems.com/sitemap.xml",
     robotsTxt: true,
     crawler: true, // used if sitemap is missing or empty; otherwise core may turn this off when sitemap is large
     maxRoutes: false, // no cap — queue every discovered route (watch runtime and origin rate limits)
