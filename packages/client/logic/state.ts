@@ -205,10 +205,10 @@ export const shouldShowWaitingState = computed<boolean>(() => {
     return !window.__unlighthouse_payload?.reports?.length
   }
 
-  // For dynamic mode, show waiting state if:
-  // 1. We have no reports at all, OR
-  // 2. We've lost connection to the server
-  return wsReports.size === 0 || isOffline.value
+  // Dynamic: only full-screen when the session looks dropped (`isOffline`).
+  // Avoid `wsReports.size === 0`: GET /reports stays empty until the first route completes HTML inspection,
+  // which wrongly showed "Waiting for Server Connection" while the server was fine.
+  return isOffline.value
 })
 
 export const rescanRoute = (route: NormalisedRoute) => useFetch(`/reports/${route.id}/rescan`).post()
