@@ -2,7 +2,7 @@ import type { UnlighthouseRouteReport, UnlighthouseTaskStatus } from '@unlightho
 import { useStorage } from '@vueuse/core'
 import Fuse from 'fuse.js'
 import { get, isEmpty, orderBy } from 'lodash-es'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { unlighthouseReports } from './state'
 import { columns, groupRoutesKey } from './static'
 
@@ -87,6 +87,8 @@ export const searchResults = computed<UnlighthouseRouteReport[]>(() => {
     return bStatus - aStatus
   })
 
+  const sortDir = sorting.value.dir ?? 'asc'
+
   if (sorting.value.key) {
     let sortKey = sorting.value.key
     if (sortKey.startsWith('report.categories.') && sortKey.endsWith('.score')) {
@@ -104,13 +106,18 @@ export const searchResults = computed<UnlighthouseRouteReport[]>(() => {
         sortKey = `${sortKey}.${columnDefinition.sortKey}`
       }
     }
-    data = orderBy(data, doLengthSort
-      ? i => get(i, sortKey)?.length || 0
-      : sortKey, sorting.value.dir)
+    // Secondary key keeps order deterministic across the full list (not per page).
+    data = doLengthSort
+      ? orderBy(
+          data,
+          [i => get(i, sortKey)?.length || 0, 'route.path'],
+          [sortDir, 'asc'],
+        )
+      : orderBy(data, [sortKey, 'route.path'], [sortDir, 'asc'])
   }
   else {
     // sort by the group routes key
-    data = orderBy(data, groupRoutesKey, 'asc')
+    data = orderBy(data, [groupRoutesKey, 'route.path'], ['asc', 'asc'])
   }
 
   return data
@@ -118,6 +125,19 @@ export const searchResults = computed<UnlighthouseRouteReport[]>(() => {
 
 export const page = ref(1)
 export const perPage = 10
+
+/** Sorting and search apply to the full list; reset page so the first slice matches the new ordering. */
+watch(
+  sorting,
+  () => {
+    page.value = 1
+  },
+  { deep: true },
+)
+
+watch(searchText, () => {
+  page.value = 1
+})
 
 export const paginatedResults = computed(() => {
   const data = searchResults.value

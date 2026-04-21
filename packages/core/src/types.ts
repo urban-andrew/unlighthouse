@@ -251,6 +251,13 @@ export interface ClientOptions {
    * When set, overrides the favicon discovered from crawled pages.
    */
   faviconUrl?: string
+  /**
+   * Origin for the CrUX History proxy (no trailing slash). Requests go to
+   * `{cruxHistoryApiBase}/api/{encodeURIComponent(siteOrigin)}/crux/history`.
+   * Defaults to the public Unlighthouse proxy. Point this at your own `crux-api`
+   * deployment if `crux.unlighthouse.dev` is blocked or unreliable.
+   */
+  cruxHistoryApiBase?: string
 }
 
 export interface GenerateClientOptions {

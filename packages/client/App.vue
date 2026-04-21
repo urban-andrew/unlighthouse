@@ -11,6 +11,7 @@ import {
   basePath,
   categoryScores,
   changedTab,
+  cruxHistoryApiBase,
   closeThumbnailsModal,
   contentModalOpen,
   device,
@@ -70,10 +71,11 @@ if (!isStatic) {
     }, 5000)
 
     cruxLoading.value = true
-    const base = `https://crux.unlighthouse.dev/api/${encodeURIComponent(website)}/crux/history`
+    const base = `${cruxHistoryApiBase.replace(/\/$/, '')}/api/${encodeURIComponent(website)}/crux/history`
+    const cruxFetchOptions = { timeout: 25_000, retry: 0 } as const
     Promise.allSettled([
-      $fetch(`${base}?formFactor=PHONE`),
-      $fetch(`${base}?formFactor=DESKTOP`),
+      $fetch(`${base}?formFactor=PHONE`, cruxFetchOptions),
+      $fetch(`${base}?formFactor=DESKTOP`, cruxFetchOptions),
     ]).then((results) => {
       const [phone, desktop] = results
       if (phone.status === 'fulfilled')
@@ -109,17 +111,8 @@ const shouldShowCategoryScore = computed(() => (category, key) => {
   return !EXCLUDED_CATEGORIES.includes(category.label) && categoryScores.value[key - 1] > 0
 })
 
-const shouldShowCruxTab = computed(() => {
-  if (isStatic)
-    return false
-  if (cruxLoading.value)
-    return true
-  if (cruxError.value)
-    return true
-  const m = cruxMobile.value
-  const d = cruxDesktop.value
-  return Boolean((m && m.exists !== false) || (d && d.exists !== false))
-})
+/** Keep the CrUX tab visible whenever the live client runs so empty/error/no-field-data states stay reachable. */
+const shouldShowCruxTab = computed(() => !isStatic)
 
 const filteredTabs = computed(() => {
   if (!shouldShowCruxTab.value) {
@@ -287,7 +280,8 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                     Failed to Load CrUX Data
                   </p>
                   <p class="text-sm text-red-700 dark:text-red-300 mt-1">
-                    Unlighthouse CrUX API is currently unavailable for both mobile and desktop.
+                    The CrUX history request failed for both mobile and desktop (timeout, network block, or server error). If you are behind a firewall, host the
+                    <code class="text-xs">crux-api</code> package and set <code class="text-xs">client.cruxHistoryApiBase</code> in your Unlighthouse config.
                   </p>
                 </div>
               </div>
@@ -489,7 +483,8 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                 />
               </div>
             </div>
-            <div class="w-full min-w-[1500px] pr-3 overflow-y-auto xl:max-h-[calc(100vh-100px)] lg:max-h-[calc(100vh-205px)] sm:max-h-[calc(100vh-220px)] max-h-[calc(100vh-250px)]">
+            <div class="w-full min-w-[1500px] pr-3 flex flex-col min-h-0 xl:max-h-[calc(100vh-100px)] lg:max-h-[calc(100vh-205px)] sm:max-h-[calc(100vh-220px)] max-h-[calc(100vh-250px)]">
+              <div class="flex-1 min-h-0 overflow-y-auto">
               <div v-if="Object.values(searchResults).length === 0" class="px-4 py-3">
                 <template v-if="searchText">
                   <p class="mb-2">
@@ -543,9 +538,9 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                 </p>
               </div>
               <results-route
-                v-for="(report, routeName) in paginatedResults"
-                :key="routeName"
-                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask, isRouteSelected(report.route.id), dualViewTick]"
+                v-for="report in paginatedResults"
+                :key="report.route.id"
+                v-memo="[report.route.url, report.report?.categories, report.tasks.runLighthouseTask, isRouteSelected(report.route.id), dualViewTick, sorting.key, sorting.dir]"
                 :report="report"
               >
                 <template #select="{ report: r }">
@@ -578,9 +573,13 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
                   </UDropdownMenu>
                 </template>
               </results-route>
-              <div v-if="searchResults.length > perPage" class="flex items-center space-x-4 mt-5">
+              </div>
+              <div
+                v-if="searchResults.length > perPage"
+                class="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 mt-2 pt-3 pb-1 border-t border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/50"
+              >
                 <Pagination v-model="page" :page-count="perPage" :total="searchResults.length" />
-                <div class="opacity-70">
+                <div class="opacity-70 text-sm">
                   {{ searchResults.length }} total
                 </div>
               </div>

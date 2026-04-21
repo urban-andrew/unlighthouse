@@ -208,26 +208,27 @@ export default defineComponent({
             class: 'text-teal-900 dark:text-teal-100 font-bold! underline',
           },
           inactiveButton: {
-            color: 'bg-white text-teal-100',
+            class:
+              'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
           },
           firstButton: {
-            color: 'white',
-            class: 'rtl:[&_span:first-child]:rotate-180',
+            class:
+              'rtl:[&_span:first-child]:rotate-180 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
             icon: 'i-heroicons-chevron-double-left-20-solid',
           },
           lastButton: {
-            color: 'white',
-            class: 'rtl:[&_span:last-child]:rotate-180',
+            class:
+              'rtl:[&_span:last-child]:rotate-180 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
             icon: 'i-heroicons-chevron-double-right-20-solid',
           },
           prevButton: {
-            color: 'white',
-            class: 'rtl:[&_span:first-child]:rotate-180',
+            class:
+              'rtl:[&_span:first-child]:rotate-180 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40',
             icon: 'i-heroicons-chevron-left-20-solid',
           },
           nextButton: {
-            color: 'white',
-            class: 'rtl:[&_span:last-child]:rotate-180',
+            class:
+              'rtl:[&_span:last-child]:rotate-180 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40',
             icon: 'i-heroicons-chevron-right-20-solid',
           },
         },

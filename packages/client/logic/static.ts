@@ -27,6 +27,7 @@ const {
     client: {
       columns: configColumns,
       groupRoutesKey,
+      cruxHistoryApiBase = 'https://crux.unlighthouse.dev',
     },
     websocketUrl: wsUrl,
     apiUrl,
@@ -46,7 +47,7 @@ export const localHistoryEnabled = !!(localHistoryOpt && typeof localHistoryOpt 
 
 export const isStatic = window.__unlighthouse_static
 
-export { apiUrl, basePath, device, dualDevice, dynamicSampling, groupRoutesKey, lighthouseOptions, throttle, wsUrl }
+export { apiUrl, basePath, cruxHistoryApiBase, device, dualDevice, dynamicSampling, groupRoutesKey, lighthouseOptions, throttle, wsUrl }
 
 export const website = new $URL(site).origin
 
