@@ -627,12 +627,6 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
             <div class="text-xs opacity-75 xl:mt-4">
               <a href="https://unlighthouse.dev" target="_blank" class="underline">Unlighthouse</a>
             </div>
-            <div class="text-xs opacity-75 xl:mt-4">
-              Made with <UIcon name="i-simple-line-icons-heart" title="Love" class="inline" aria-label="love" /> by <a href="https://twitter.com/harlan_zw" target="_blank" class="underline">@harlan_zw</a>
-            </div>
-          </div>
-          <div class="text-xs opacity-50 xl:mt-4 mt-1">
-            Portions of this report use Lighthouse. For more information visit <a href="https://developers.google.com/web/tools/lighthouse" class="underline">here</a>.
           </div>
         </div>
       </footer>
