@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { UTCTimestamp } from 'lightweight-charts'
-import { createChart, LineSeries } from 'lightweight-charts'
+import type { ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
+import { ColorType, LineSeries, createChart } from 'lightweight-charts'
 import { $fetch } from 'ofetch'
 import { isDark } from '../../logic/dark'
 import { apiUrl } from '../../logic/static'
@@ -73,10 +73,12 @@ const TYPE_LABELS: Record<(typeof TYPE_ORDER)[number], string> = {
 const payload = ref<Payload | null>(null)
 const loadError = ref<string | null>(null)
 const chartEl = ref<HTMLDivElement | null>(null)
+const crosshairHint = ref('')
 const comparisonMode = ref<(typeof COMPARISON_OPTIONS)[number]['key']>('consecutive')
 /** When true, chart uses one point per UTC day (latest scan that day). */
 const useDailySeries = ref(true)
 let chart: ReturnType<typeof createChart> | null = null
+let lineSeriesApi: ISeriesApi<'Line'> | null = null
 
 const comparisonsResolved = computed(() => {
   const p = payload.value
@@ -112,7 +114,10 @@ const chartRuns = computed(() => {
 function chartLayout() {
   return {
     layout: {
-      background: { color: isDark.value ? '#0f172a' : '#ffffff' },
+      background: {
+        type: ColorType.Solid,
+        color: isDark.value ? '#0f172a' : '#ffffff',
+      },
       textColor: isDark.value ? '#e2e8f0' : '#1f2937',
     },
     grid: {
@@ -131,11 +136,22 @@ function chartLayout() {
 function destroyChart() {
   chart?.remove()
   chart = null
+  lineSeriesApi = null
+}
+
+function formatChartTime(t: Time): string {
+  if (typeof t === 'number')
+    return new Date(t * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  return String(t)
 }
 
 function buildLineData(runs: Run[]) {
-  const out: { time: UTCTimestamp, value: number }[] = []
+  const data: { time: UTCTimestamp, value: number }[] = []
+  /** Chart time key (after de-dup bump) → run metadata for tooltips */
+  const runByChartTime = new Map<number, { run: Run, runIndex: number, totalInSeries: number }>()
   let lastTime = -1
+  let plotted = 0
+  const totalInSeries = runs.filter(r => r.siteAvg != null && !Number.isNaN(r.siteAvg)).length
   for (const r of runs) {
     if (r.siteAvg == null || Number.isNaN(r.siteAvg))
       continue
@@ -143,35 +159,76 @@ function buildLineData(runs: Run[]) {
     if (t <= lastTime)
       t = lastTime + 1
     lastTime = t
-    out.push({
+    plotted++
+    data.push({
       time: t as UTCTimestamp,
       value: Math.round(r.siteAvg * 10000) / 100,
     })
+    runByChartTime.set(t, { run: r, runIndex: plotted, totalInSeries })
   }
-  return out
+  return { data, runByChartTime }
 }
 
 function redrawChart(runs: Run[]) {
   destroyChart()
+  crosshairHint.value = ''
   const el = chartEl.value
   if (!el || runs.length === 0)
     return
 
-  const data = buildLineData(runs)
+  const { data, runByChartTime } = buildLineData(runs)
   if (data.length === 0)
     return
 
   chart = createChart(el, {
-    width: el.clientWidth,
     height: 280,
+    autoSize: true,
+    localization: {
+      locale: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
+      timeFormatter: (t: Time) => formatChartTime(t),
+    },
     ...chartLayout(),
   })
   const series = chart.addSeries(LineSeries, {
     color: '#0d9488',
     lineWidth: 2,
+    title: 'Site avg',
   })
+  lineSeriesApi = series
   series.setData(data)
   chart.timeScale().fitContent()
+
+  chart.subscribeCrosshairMove((param) => {
+    if (param.point === undefined || param.time === undefined || !lineSeriesApi) {
+      crosshairHint.value = ''
+      return
+    }
+    const t = typeof param.time === 'number' ? param.time : null
+    if (t == null) {
+      crosshairHint.value = ''
+      return
+    }
+    const meta = runByChartTime.get(t)
+    if (!meta) {
+      crosshairHint.value = ''
+      return
+    }
+    const row = param.seriesData.get(lineSeriesApi) as { value?: number } | undefined
+    const score = row?.value != null && !Number.isNaN(row.value) ? `${Math.round(row.value)}%` : fmtScore(meta.run.siteAvg)
+    crosshairHint.value = `Run ${meta.runIndex} of ${meta.totalInSeries} · ${formatChartTime(t as Time)} · ${score} site avg · ${meta.run.routeCount} routes`
+  })
+}
+
+function scheduleChartDraw() {
+  if (!payload.value?.enabled || !chartRuns.value.length)
+    return
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        redrawChart(chartRuns.value)
+      })
+    })
+  })
 }
 
 async function load() {
@@ -179,9 +236,8 @@ async function load() {
   try {
     const res = await $fetch<Payload>(`${apiUrl}/local-history`)
     payload.value = res
-    await nextTick()
     if (res.enabled && chartRuns.value.length)
-      redrawChart(chartRuns.value)
+      scheduleChartDraw()
   }
   catch (e) {
     loadError.value = e instanceof Error ? e.message : 'Failed to load history'
@@ -190,7 +246,7 @@ async function load() {
 
 watch([chartRuns, isDark, useDailySeries], () => {
   if (payload.value?.enabled && chartRuns.value.length)
-    nextTick(() => redrawChart(chartRuns.value))
+    scheduleChartDraw()
 }, { deep: true })
 
 onMounted(() => {
@@ -346,7 +402,15 @@ function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
               One datapoint per completed scan (multiple runs on the same day appear as separate points).
             </template>
           </p>
-          <div ref="chartEl" class="w-full h-[280px] rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden" />
+          <div class="relative w-full min-h-[280px] min-w-0 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+            <div ref="chartEl" class="h-[280px] w-full min-w-0" />
+            <div
+              v-if="crosshairHint"
+              class="pointer-events-none absolute bottom-1 left-1 right-1 z-10 rounded bg-white/90 px-2 py-1 text-center text-xs text-gray-800 shadow-sm dark:bg-slate-900/90 dark:text-slate-100"
+            >
+              {{ crosshairHint }}
+            </div>
+          </div>
         </div>
 
         <div>
