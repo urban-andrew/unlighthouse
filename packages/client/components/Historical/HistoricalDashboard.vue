@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
-import { ColorType, LineSeries, createChart } from 'lightweight-charts'
+import { ColorType, LineSeries, TickMarkType, createChart, isBusinessDay } from 'lightweight-charts'
 import { $fetch } from 'ofetch'
 import { isDark } from '../../logic/dark'
 import { apiUrl } from '../../logic/static'
@@ -111,6 +111,23 @@ const chartRuns = computed(() => {
   return p.runs
 })
 
+/** Human-readable span for the series currently plotted (daily vs every scan). */
+const chartSeriesSummary = computed(() => {
+  const runs = chartRuns.value
+  if (!runs.length)
+    return ''
+  const a = new Date(runs[0]!.runAt)
+  const b = new Date(runs[runs.length - 1]!.runAt)
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
+  const sameDay = a.toDateString() === b.toDateString()
+  const fmt = (d: Date) =>
+    d.toLocaleString(locale, { month: 'short', day: 'numeric', year: 'numeric', ...(sameDay ? { hour: '2-digit', minute: '2-digit' } : {}) })
+  const scope = useDailySeries.value ? 'one snapshot per UTC day' : 'every completed scan'
+  if (runs.length === 1)
+    return `${runs.length} point (${scope}) · ${fmt(a)}`
+  return `${runs.length} points (${scope}) · ${fmt(a)} → ${fmt(b)}`
+})
+
 function chartLayout() {
   return {
     layout: {
@@ -129,6 +146,7 @@ function chartLayout() {
     },
     timeScale: {
       borderColor: isDark.value ? '#475569' : '#d1d5db',
+      tickMarkFormatter: formatTimeTick,
     },
   }
 }
@@ -139,10 +157,42 @@ function destroyChart() {
   lineSeriesApi = null
 }
 
+function timeToDate(time: Time): Date | null {
+  if (typeof time === 'number')
+    return new Date(time * 1000)
+  if (isBusinessDay(time))
+    return new Date(Date.UTC(time.year, time.month - 1, time.day))
+  return null
+}
+
 function formatChartTime(t: Time): string {
-  if (typeof t === 'number')
-    return new Date(t * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-  return String(t)
+  const d = timeToDate(t)
+  if (!d)
+    return String(t)
+  return d.toLocaleString(typeof navigator !== 'undefined' ? navigator.language : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+/** Avoid bare “21” (day-of-month) ticks when the library picks {@link TickMarkType.DayOfMonth}. */
+function formatTimeTick(time: Time, tickMarkType: TickMarkType, locale: string): string | null {
+  const d = timeToDate(time)
+  if (!d)
+    return null
+  switch (tickMarkType) {
+    case TickMarkType.Year:
+      return d.toLocaleDateString(locale, { year: 'numeric' })
+    case TickMarkType.Month:
+      return d.toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+    case TickMarkType.DayOfMonth:
+      return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
+    case TickMarkType.Time:
+    case TickMarkType.TimeWithSeconds:
+      return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    default:
+      return d.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
+  }
 }
 
 function buildLineData(runs: Run[]) {
@@ -193,6 +243,21 @@ function redrawChart(runs: Run[]) {
     color: '#0d9488',
     lineWidth: 2,
     title: 'Site avg',
+    /** Lighthouse site avg is 0–1 in API; chart uses 0–100 like the rest of the UI. */
+    autoscaleInfoProvider: () => ({
+      priceRange: {
+        minValue: 0,
+        maxValue: 100,
+      },
+    }),
+    priceFormat: {
+      type: 'custom',
+      minMove: 0.25,
+      formatter: (priceValue: number) => `${Math.round(priceValue)}%`,
+    },
+    pointMarkersVisible: true,
+    pointMarkersRadius: 3,
+    lastValueVisible: true,
   })
   lineSeriesApi = series
   series.setData(data)
@@ -267,6 +332,12 @@ function fmtPct(p: number | null | undefined) {
 function fmtScore(s: number | null | undefined) {
   if (s == null || Number.isNaN(s))
     return '—'
+  return `${Math.round(s * 100)}%`
+}
+
+function fmtPageTypeScore(s: number | null | undefined) {
+  if (s == null || Number.isNaN(s))
+    return 'No routes'
   return `${Math.round(s * 100)}%`
 }
 
@@ -359,9 +430,14 @@ function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
           </div>
           <div
             v-else
-            class="rounded-lg px-3 py-1 text-xs opacity-70 border border-dashed border-gray-300 dark:border-slate-600"
+            class="rounded-lg px-3 py-1 text-xs opacity-70 border border-dashed border-gray-300 dark:border-slate-600 max-w-md"
           >
-            No baseline for this comparison (need more history or older scans).
+            <template v-if="payload.runs.length < 2">
+              Need at least two completed scans in <code class="text-[11px] opacity-90">.unlighthouse/history/</code> to compare. The current run is still writing history when the scan finishes.
+            </template>
+            <template v-else>
+              No baseline for this comparison yet (e.g. no prior calendar day for DoD, or no scan old enough for WoW / MoM / YoY).
+            </template>
           </div>
         </div>
 
@@ -402,6 +478,9 @@ function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
               One datapoint per completed scan (multiple runs on the same day appear as separate points).
             </template>
           </p>
+          <p v-if="chartSeriesSummary" class="text-xs opacity-80 mb-2 tabular-nums">
+            {{ chartSeriesSummary }}
+          </p>
           <div class="relative w-full min-h-[280px] min-w-0 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
             <div ref="chartEl" class="h-[280px] w-full min-w-0" />
             <div
@@ -414,9 +493,13 @@ function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
         </div>
 
         <div>
-          <h3 class="font-semibold text-lg mb-3">
+          <h3 class="font-semibold text-lg mb-1">
             Breakdown by page type (latest run)
           </h3>
+          <p class="text-xs opacity-70 mb-3 max-w-3xl">
+            Scores are averaged only for routes whose URL matches each type (Shopify-style paths, etc.).
+            <span class="opacity-90">“No routes”</span> means nothing in the latest snapshot was classified into that bucket—not a loading error.
+          </p>
           <div class="space-y-3">
             <div
               v-for="t in TYPE_ORDER"
@@ -426,7 +509,7 @@ function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
               <div class="flex justify-between text-xs gap-2">
                 <span class="opacity-90">{{ TYPE_LABELS[t] }}</span>
                 <span class="tabular-nums shrink-0">
-                  {{ fmtScore(payload.runs[payload.runs.length - 1]?.byType?.[t]) }}
+                  {{ fmtPageTypeScore(payload.runs[payload.runs.length - 1]?.byType?.[t]) }}
                   <span
                     v-if="activeComparison?.byType?.[t] != null"
                     class="ml-2 opacity-80"
