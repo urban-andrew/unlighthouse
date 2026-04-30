@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
 import { ColorType, LineSeries, TickMarkType, createChart, isBusinessDay } from 'lightweight-charts'
-import { $fetch } from 'ofetch'
 import { isDark } from '../../logic/dark'
-import { apiUrl } from '../../logic/static'
+import { downloadLocalHistoryCsv } from '../../logic/exportLocalHistoryCsv'
+import type { LocalHistorySummaryPayload } from '../../logic/localHistoryCache'
+import { ensureLocalHistoryPayload, getLocalHistoryFetchError, getLocalHistoryPayload } from '../../logic/localHistoryCache'
 
 interface Wow {
   siteAvgDeltaPct: number | null
@@ -16,6 +17,9 @@ interface Run {
   siteAvg: number | null
   routeCount: number
   byType: Record<string, number | null>
+  byCategory?: Record<string, number | null>
+  byCategoryByType?: Record<string, Record<string, number | null>>
+  annotation?: string | null
 }
 
 interface Payload {
@@ -280,7 +284,8 @@ function redrawChart(runs: Run[]) {
     }
     const row = param.seriesData.get(lineSeriesApi) as { value?: number } | undefined
     const score = row?.value != null && !Number.isNaN(row.value) ? `${Math.round(row.value)}%` : fmtScore(meta.run.siteAvg)
-    crosshairHint.value = `Run ${meta.runIndex} of ${meta.totalInSeries} · ${formatChartTime(t as Time)} · ${score} site avg · ${meta.run.routeCount} routes`
+    const note = meta.run.annotation ? ` · ${meta.run.annotation}` : ''
+    crosshairHint.value = `Run ${meta.runIndex} of ${meta.totalInSeries} · ${formatChartTime(t as Time)} · ${score} site avg · ${meta.run.routeCount} routes${note}`
   })
 }
 
@@ -298,15 +303,17 @@ function scheduleChartDraw() {
 
 async function load() {
   loadError.value = null
-  try {
-    const res = await $fetch<Payload>(`${apiUrl}/local-history`)
-    payload.value = res
-    if (res.enabled && chartRuns.value.length)
-      scheduleChartDraw()
+  await ensureLocalHistoryPayload()
+  const err = getLocalHistoryFetchError().value
+  if (err) {
+    loadError.value = err
+    payload.value = null
+    return
   }
-  catch (e) {
-    loadError.value = e instanceof Error ? e.message : 'Failed to load history'
-  }
+  const res = getLocalHistoryPayload().value as Payload | null
+  payload.value = res
+  if (res?.enabled && chartRuns.value.length)
+    scheduleChartDraw()
 }
 
 watch([chartRuns, isDark, useDailySeries], () => {
@@ -350,14 +357,30 @@ function barWidth(score: number | null) {
 function comparisonHint(key: (typeof COMPARISON_OPTIONS)[number]['key']) {
   return COMPARISON_OPTIONS.find(o => o.key === key)?.hint ?? ''
 }
+
+function exportCsv() {
+  const p = payload.value
+  if (p?.enabled && p.runs?.length)
+    downloadLocalHistoryCsv(p as LocalHistorySummaryPayload)
+}
 </script>
 
 <template>
   <div class="w-full max-w-6xl space-y-8 pb-10">
     <div>
-      <h2 class="font-bold text-2xl mb-2">
-        Historical performance
-      </h2>
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-2">
+        <h2 class="font-bold text-2xl">
+          Historical performance
+        </h2>
+        <button
+          v-if="payload?.enabled && payload.runs.length"
+          type="button"
+          class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium transition-colors hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
+          @click="exportCsv"
+        >
+          Export CSV
+        </button>
+      </div>
       <p class="text-sm opacity-75 max-w-2xl">
         Averages from <code class="text-xs bg-gray-100 dark:bg-slate-800 px-1 rounded">localHistory</code> snapshots (each completed scan under
         <code class="text-xs bg-gray-100 dark:bg-slate-800 px-1 rounded">.unlighthouse/history/</code>). Page types use common URL patterns (e.g. Shopify-style paths).

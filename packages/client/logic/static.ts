@@ -28,6 +28,7 @@ const {
       columns: configColumns,
       groupRoutesKey,
       cruxHistoryApiBase = 'https://crux.unlighthouse.dev',
+      cwvMonitoring: cwvMonitoringPartial = {},
     },
     websocketUrl: wsUrl,
     apiUrl,
@@ -42,6 +43,30 @@ const {
     routerPrefix: basePath,
   },
 } = window.__unlighthouse_payload
+
+const defaultCwvMonitoring = {
+  cruxBudgets: { lcpMs: 2500, inpMs: 200, cls: 0.1 },
+  siteScoreRegressionDeltaPct: -3,
+  cruxRegressionAbs: { lcpMs: 200, inpMs: 20, cls: 0.02 },
+  rumDocsUrl: 'https://web.dev/vitals/',
+  schedulingDocsUrl: 'https://unlighthouse.dev/',
+  rumSnippetUrl: 'https://github.com/GoogleChrome/web-vitals',
+}
+
+export const cwvMonitoring = {
+  cruxBudgets: {
+    ...defaultCwvMonitoring.cruxBudgets,
+    ...cwvMonitoringPartial.cruxBudgets,
+  },
+  siteScoreRegressionDeltaPct: cwvMonitoringPartial.siteScoreRegressionDeltaPct ?? defaultCwvMonitoring.siteScoreRegressionDeltaPct,
+  cruxRegressionAbs: {
+    ...defaultCwvMonitoring.cruxRegressionAbs,
+    ...cwvMonitoringPartial.cruxRegressionAbs,
+  },
+  rumDocsUrl: cwvMonitoringPartial.rumDocsUrl ?? defaultCwvMonitoring.rumDocsUrl,
+  schedulingDocsUrl: cwvMonitoringPartial.schedulingDocsUrl ?? defaultCwvMonitoring.schedulingDocsUrl,
+  rumSnippetUrl: cwvMonitoringPartial.rumSnippetUrl ?? defaultCwvMonitoring.rumSnippetUrl,
+}
 
 export const localHistoryEnabled = !!(localHistoryOpt && typeof localHistoryOpt === 'object' && localHistoryOpt.enabled)
 

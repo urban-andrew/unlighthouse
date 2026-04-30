@@ -22,6 +22,14 @@ export interface LocalHistoryRunSummary {
   siteAvg: number | null
   routeCount: number
   byType: Record<PageType, number | null>
+  /** Mean Lighthouse category score (0–1) across routes in this snapshot; keys match configured `onlyCategories`. */
+  byCategory: Record<string, number | null>
+  /**
+   * Mean category score per page-type bucket (outer key = Lighthouse category, inner = {@link PAGE_TYPE_ORDER} key).
+   */
+  byCategoryByType: Record<string, Record<PageType, number | null>>
+  /** Optional label from `localHistory.runAnnotation` at persist time. */
+  annotation?: string | null
 }
 
 export interface LocalHistoryWow {
@@ -67,7 +75,13 @@ function routesWithTypes(routes: LocalHistoryRouteRow[]): LocalHistoryRouteRow[]
   })
 }
 
-function summarizeRun(runId: string, runAt: string, routes: LocalHistoryRouteRow[]): LocalHistoryRunSummary {
+function summarizeRun(
+  runId: string,
+  runAt: string,
+  routes: LocalHistoryRouteRow[],
+  categoryKeys: readonly string[],
+  annotation: string | null,
+): LocalHistoryRunSummary {
   const typed = routesWithTypes(routes)
   const scores = typed.map(r => r.score).filter(v => typeof v === 'number' && !Number.isNaN(v))
   const siteAvg = averageScores(scores)
@@ -76,12 +90,32 @@ function summarizeRun(runId: string, runAt: string, routes: LocalHistoryRouteRow
     const vals = typed.filter(r => r.pageType === t).map(r => r.score)
     byType[t] = averageScores(vals)
   }
+  const byCategory: Record<string, number | null> = {}
+  const byCategoryByType: Record<string, Record<PageType, number | null>> = {}
+  for (const cat of categoryKeys) {
+    const vals = typed
+      .map(r => r.categories?.[cat])
+      .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
+    byCategory[cat] = averageScores(vals)
+    const inner = emptyByType()
+    for (const t of PAGE_TYPE_ORDER) {
+      const tvals = typed
+        .filter(r => r.pageType === t)
+        .map(r => r.categories?.[cat])
+        .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
+      inner[t] = averageScores(tvals)
+    }
+    byCategoryByType[cat] = inner
+  }
   return {
     runId,
     runAt,
     siteAvg,
     routeCount: routes.length,
     byType,
+    byCategory,
+    byCategoryByType,
+    annotation: annotation || null,
   }
 }
 
@@ -179,6 +213,11 @@ export async function readLocalHistorySummary(
   if (opts === false || !opts || typeof opts !== 'object' || !opts.enabled)
     return null
 
+  const configuredCats = resolvedConfig.lighthouseOptions?.onlyCategories
+  const categoryKeys: readonly string[] = Array.isArray(configuredCats) && configuredCats.length > 0
+    ? [...configuredCats]
+    : ['performance', 'accessibility', 'best-practices', 'seo']
+
   const subdir = opts.subdir ?? 'history'
   const baseDir = join(runtimeSettings.outputPath, subdir)
   const indexPath = join(baseDir, 'index.json')
@@ -227,16 +266,17 @@ export async function readLocalHistorySummary(
     const p = join(baseDir, runId, 'run.json')
     if (!await fs.pathExists(p))
       continue
-    let snap: { runAt?: string, routes?: LocalHistoryRouteRow[] }
+    let snap: { runAt?: string, routes?: LocalHistoryRouteRow[], runAnnotation?: string }
     try {
-      snap = (await fs.readJson(p)) as { runAt?: string, routes?: LocalHistoryRouteRow[] }
+      snap = (await fs.readJson(p)) as { runAt?: string, routes?: LocalHistoryRouteRow[], runAnnotation?: string }
     }
     catch {
       continue
     }
     const routes = Array.isArray(snap.routes) ? snap.routes : []
     const runAt = typeof snap.runAt === 'string' ? snap.runAt : new Date().toISOString()
-    summaries.push(summarizeRun(runId, runAt, routes))
+    const annotation = typeof snap.runAnnotation === 'string' ? snap.runAnnotation : null
+    summaries.push(summarizeRun(runId, runAt, routes, categoryKeys, annotation))
   }
 
   // Newest first (index.json stores newest first)

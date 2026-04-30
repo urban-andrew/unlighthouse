@@ -258,6 +258,39 @@ export interface ClientOptions {
    * deployment if `crux.unlighthouse.dev` is blocked or unreliable.
    */
   cruxHistoryApiBase?: string
+  /**
+   * Field (CrUX) vs lab (Lighthouse) monitoring: budgets, regression hints, doc links for the Performance strip.
+   */
+  cwvMonitoring?: CwvMonitoringClientConfig
+}
+
+/** Client-only CWV monitoring (injected into the UI; no secrets). */
+export interface CwvMonitoringClientConfig {
+  /**
+   * Chrome UX Report p75-style budgets (same units as the History API series values: ms for LCP/INP, unitless for CLS).
+   * @default LCP 2500ms, INP 200ms, CLS 0.1
+   */
+  cruxBudgets?: {
+    lcpMs?: number
+    inpMs?: number
+    cls?: number
+  }
+  /**
+   * Flag lab “site average” regression when WoW % change is at or below this (e.g. -3 = worse by 3% or more).
+   * @default -3
+   */
+  siteScoreRegressionDeltaPct?: number
+  /**
+   * Flag CrUX regression when latest vs ~7d-earlier point worsens by at least this absolute amount (LCP/INP in ms, CLS absolute).
+   * @default LCP 200, INP 20, CLS 0.02
+   */
+  cruxRegressionAbs?: { lcpMs?: number, inpMs?: number, cls?: number }
+  /** Link shown next to “add RUM” guidance. */
+  rumDocsUrl?: string
+  /** Link for scheduling / CI (e.g. cron or GitHub Actions). */
+  schedulingDocsUrl?: string
+  /** Link to the `web-vitals` library / snippet for RUM. */
+  rumSnippetUrl?: string
 }
 
 export interface GenerateClientOptions {
@@ -285,6 +318,10 @@ export interface LocalHistoryConfig {
    * @default true
    */
   dashboard?: boolean
+  /**
+   * Stored on each `run.json` as `runAnnotation` (e.g. release tag, deploy id). Update between scans to label snapshots.
+   */
+  runAnnotation?: string
 }
 
 export interface ResolvedUserConfig {

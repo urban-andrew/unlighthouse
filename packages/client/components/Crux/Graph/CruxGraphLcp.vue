@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import dayjs from 'dayjs'
-import { createChart } from 'lightweight-charts'
+import { BaselineSeries, LineType, createChart } from 'lightweight-charts'
 import { isDark } from '../../../logic'
 import { useHumanMs } from '../../../logic/formatting'
 
@@ -43,14 +43,12 @@ const darkTheme = {
     },
   },
   series: {
-    topColor: 'rgba(32, 226, 47, 0.56)',
-    bottomColor: 'rgba(32, 226, 47, 0.04)',
-    lineColor: 'rgba(32, 226, 47, 1)',
-  },
-  series2: {
-    topColor: 'rgba(156, 39, 176, 0.4)',
-    bottomColor: 'rgba(156, 39, 176, 0.04)',
-    lineColor: 'rgba(156, 39, 176, 0.5)',
+    topLineColor: 'rgba(32, 226, 47, 1)',
+    topFillColor1: 'rgba(32, 226, 47, 0.56)',
+    topFillColor2: 'rgba(32, 226, 47, 0.04)',
+    bottomLineColor: 'rgba( 12, 206, 106, 1)',
+    bottomFillColor1: 'rgba( 12, 206, 106, 0.28)',
+    bottomFillColor2: 'rgba( 12, 206, 106, 0.05)',
   },
 }
 
@@ -77,15 +75,12 @@ const lightTheme = {
     },
   },
   series: {
-    topColor: 'rgba(33, 150, 243, 0.9)',
-    bottomColor: 'rgba(33, 150, 243, 0.04)',
-    lineColor: 'rgba(33, 150, 243, 0.5)',
-  },
-  // this is the impressions from google search console, we want to use a similar purple
-  series2: {
-    topColor: 'rgba(156, 39, 176, 0.3)',
-    bottomColor: 'rgba(156, 39, 176, 0.04)',
-    lineColor: 'rgba(156, 39, 176, 0.4)',
+    topLineColor: 'rgba(33, 150, 243, 0.5)',
+    topFillColor1: 'rgba(33, 150, 243, 0.9)',
+    topFillColor2: 'rgba(33, 150, 243, 0.04)',
+    bottomLineColor: 'rgba( 12, 206, 106, 1)',
+    bottomFillColor1: 'rgba( 12, 206, 106, 0.28)',
+    bottomFillColor2: 'rgba( 12, 206, 106, 0.05)',
   },
 }
 
@@ -117,10 +112,7 @@ onMounted(() => {
   })
   _chart.timeScale().fitContent()
 
-  const areaSeries = _chart.addBaselineSeries({
-    topColor: 'rgba(33, 150, 243, 0.56)',
-    bottomColor: 'rgba(33, 150, 243, 0.04)',
-    lineColor: 'rgba(33, 150, 243, 1)',
+  const areaSeries = _chart.addSeries(BaselineSeries, {
     lineWidth: 2,
     priceLineVisible: false,
     lastValueVisible: false,
@@ -135,7 +127,7 @@ onMounted(() => {
     priceFormat: {
       type: 'volume',
     },
-    lineType: 2,
+    lineType: LineType.Curved,
   })
   if (props.value && props.value.length) {
     // Good (≤ 2.5 s)

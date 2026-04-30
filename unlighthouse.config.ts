@@ -5,6 +5,14 @@ export default defineUnlighthouseConfig({
   site: 'https://urbanstems.com',
   client: {
     faviconUrl: 'https://urbanstems.com/cdn/shop/files/favicon.png',
+    // Optional: CrUX p75 budgets, regression thresholds, doc links for the Performance monitoring strip.
+    cwvMonitoring: {
+      // cruxBudgets: { lcpMs: 2500, inpMs: 200, cls: 0.1 },
+      // siteScoreRegressionDeltaPct: -3,
+      // cruxRegressionAbs: { lcpMs: 200, inpMs: 20, cls: 0.02 },
+      // rumDocsUrl: 'https://web.dev/vitals/',
+      // schedulingDocsUrl: 'https://unlighthouse.dev/',
+    },
   },
   // Default `cache: true` avoids re-running Lighthouse for unchanged routes between runs.
   scanner: {
@@ -31,5 +39,7 @@ export default defineUnlighthouseConfig({
   localHistory: {
     enabled: true,
     maxRuns: 20,
+    /** Stored on each `run.json`; set before a scan to label the snapshot (e.g. git tag or deploy id). */
+    // runAnnotation: 'v1.2.3',
   },
 })

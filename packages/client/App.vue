@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import UDropdownMenu from '@nuxt/ui/components/DropdownMenu.vue'
 import { useTitle } from '@vueuse/core'
+import { startCase } from 'lodash-es'
 import { $fetch } from 'ofetch'
+import CategoryHistorySparkline from './components/Historical/CategoryHistorySparkline.vue'
+import PerformanceCwvMonitoring from './components/Monitoring/PerformanceCwvMonitoring.vue'
 import { EXCLUDED_CATEGORIES } from './constants'
 import { normalizeCruxHistoryPayload } from './logic/cruxChart'
 import {
@@ -9,6 +12,7 @@ import {
   activeTab,
   apiUrl,
   basePath,
+  categories,
   categoryScores,
   changedTab,
   cruxHistoryApiBase,
@@ -25,6 +29,7 @@ import {
   isRefreshLighthouseFormFactorRunning,
   isRouteSelected,
   isStatic,
+  localHistoryEnabled,
   lighthouseOptions,
   lighthouseReportModalOpen,
   openDebugModal,
@@ -119,6 +124,28 @@ const filteredTabs = computed(() => {
     return tabs.filter(tab => tab.label !== 'CrUX')
   }
   return tabs
+})
+
+/** Map sidebar tab label → Lighthouse category id for local-history sparkline. */
+function tabLabelToCategoryKey(label: string): string | null {
+  const specials: Record<string, string> = {
+    SEO: 'seo',
+    PWA: 'pwa',
+  }
+  if (specials[label])
+    return specials[label]
+  return categories.find(c => startCase(c) === label) ?? null
+}
+
+const activeCategoryTabKey = computed(() => {
+  if (!localHistoryEnabled)
+    return null
+  const tab = filteredTabs.value[activeTab.value]
+  if (!tab)
+    return null
+  if (tab.label === 'Overview' || tab.label === 'CrUX' || tab.label === 'Historical')
+    return null
+  return tabLabelToCategoryKey(tab.label)
 })
 
 const getDropdownActions = computed(() => (report) => {
@@ -475,6 +502,16 @@ useTitle(`${website.replace(/https?:\/\/(www.)?/, '')} | Unlighthouse`)
             <div
               class="flex w-full min-w-[1500px] min-h-0 flex-1 flex-col pr-3 xl:max-h-[calc(100vh-100px)] lg:max-h-[calc(100vh-205px)] sm:max-h-[calc(100vh-220px)] max-h-[calc(100vh-250px)]"
             >
+              <PerformanceCwvMonitoring
+                v-if="activeCategoryTabKey === 'performance' && !isStatic"
+                :crux-mobile="cruxMobile"
+                :crux-desktop="cruxDesktop"
+              />
+              <CategoryHistorySparkline
+                v-if="activeCategoryTabKey"
+                :category-key="activeCategoryTabKey"
+                class="shrink-0 pr-10"
+              />
               <div class="pr-10 pb-1 shrink-0">
                 <div class="grid grid-cols-12 gap-4 text-sm dark:text-gray-300 text-gray-700">
                   <results-table-head

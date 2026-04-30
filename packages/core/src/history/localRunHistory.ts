@@ -41,12 +41,17 @@ export async function persistLocalRunHistory(
     })
 
   await fs.ensureDir(runDir)
+  const runAnnotation = typeof opts.runAnnotation === 'string' && opts.runAnnotation.trim()
+    ? opts.runAnnotation.trim()
+    : undefined
+
   const manifest = {
     runAt: new Date().toISOString(),
     site: resolvedConfig.site,
     configCacheKey: runtimeSettings.configCacheKey,
     routeCount: routes.length,
     routes,
+    ...(runAnnotation ? { runAnnotation } : {}),
   }
   await fs.writeJson(join(runDir, 'run.json'), manifest, { spaces: 2 })
 
