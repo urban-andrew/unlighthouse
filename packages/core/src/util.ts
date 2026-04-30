@@ -181,6 +181,92 @@ export async function createAxiosInstance(resolvedConfig: ResolvedUserConfig) {
   return unlighthouse._axios
 }
 
+function responseBodyAsString(data: unknown): string {
+  if (typeof data === 'string')
+    return data
+  if (Buffer.isBuffer(data))
+    return data.toString('utf8')
+  return ''
+}
+
+function headerValue(headers: any, name: string): string | undefined {
+  if (!headers)
+    return undefined
+  const lower = name.toLowerCase()
+  if (typeof headers.get === 'function')
+    return headers.get(name) ?? headers.get(lower)
+  const h = headers as Record<string, string | undefined>
+  return h[name] ?? h[lower]
+}
+
+function looksLikeCloudflareOrBotWall(body: string): boolean {
+  if (!body || body.length < 80)
+    return false
+  return (
+    body.includes('__cf_chl')
+    || body.includes('cf-challenge')
+    || body.includes('challenge-platform')
+    || body.includes('Verifying your connection')
+    || body.includes('Just a moment')
+    || body.includes('Enable JavaScript and cookies')
+    || body.includes('cdn-cgi/challenge')
+  )
+}
+
+/**
+ * Avoid multi‑MB HTML dumps (e.g. Cloudflare interstitials) and explain common failure modes.
+ */
+function logAxiosGetFailure(url: string, e: any) {
+  const logger = useLogger()
+  const res = e?.response
+  const status = res?.status as number | undefined
+  const headers = res?.headers
+  const bodyStr = responseBodyAsString(res?.data)
+  const cfMitigated = headerValue(headers, 'cf-mitigated')
+  const cfRay = headerValue(headers, 'cf-ray')
+  const retryAfter = headerValue(headers, 'retry-after')
+
+  const blockedByEdge = status === 429
+    || cfMitigated
+    || looksLikeCloudflareOrBotWall(bodyStr)
+
+  if (blockedByEdge) {
+    const bits = [
+      status && `HTTP ${status}`,
+      cfMitigated && `cf-mitigated=${cfMitigated}`,
+      cfRay && `cf-ray=${cfRay}`,
+      retryAfter && `retry-after=${retryAfter}`,
+    ].filter(Boolean)
+    logger.error(
+      `[unlighthouse] ${bits.join(' · ') || 'Request blocked'} when fetching ${url}. The origin returned a rate limit or bot/WAF challenge page instead of real content; plain Axios cannot pass interactive checks. Try: increase puppeteerClusterOptions.workerCreationDelay / lower maxConcurrency, set scanner.cookies or scanner.auth, use a staging URL, or ask the site owner to allowlist your IP or automation.`,
+    )
+    return
+  }
+
+  if (e?.errors)
+    logger.error('Axios error:', e.errors)
+  logger.error('Axios error message:', e.message)
+  logger.error('Axios error code:', e.code)
+  if (res) {
+    logger.error('Axios error response status:', status)
+    const slim: Record<string, string | undefined> = {
+      server: headerValue(headers, 'server'),
+      'content-type': headerValue(headers, 'content-type'),
+      'cf-ray': cfRay,
+      'retry-after': retryAfter,
+    }
+    const defined = Object.fromEntries(Object.entries(slim).filter(([, v]) => v != null))
+    if (Object.keys(defined).length)
+      logger.error('Axios error response headers (subset):', defined)
+    if (bodyStr.length > 2000)
+      logger.error(`Axios error response body (truncated, ${bodyStr.length} chars):`, `${bodyStr.slice(0, 600)}…`)
+    else if (bodyStr.length)
+      logger.error('Axios error response body:', bodyStr)
+    else if (res.data != null)
+      logger.error('Axios error response data:', res.data)
+  }
+}
+
 export async function fetchUrlRaw(url: string, resolvedConfig: ResolvedUserConfig): Promise<{ error?: any, redirected?: boolean, redirectUrl?: string, valid: boolean, response?: AxiosResponse }> {
   const logger = useLogger()
   const unlighthouse = sharedContext()
@@ -214,16 +300,7 @@ export async function fetchUrlRaw(url: string, resolvedConfig: ResolvedUserConfi
       }
     }
     catch (e: any) {
-      if (e.errors) {
-        logger.error('Axios error:', e.errors)
-      }
-      logger.error('Axios error message:', e.message)
-      logger.error('Axios error code:', e.code)
-      if (e.response) {
-        logger.error('Axios error response data:', e.response.data)
-        logger.error('Axios error response status:', e.response.status)
-        logger.error('Axios error response headers:', e.response.headers)
-      }
+      logAxiosGetFailure(url, e)
       if (e.code === 'ETIMEDOUT' || e.code === 'ENETUNREACH') {
         attempt++
         logger.info(`Retrying request... (${attempt}/${maxRetries})`)
